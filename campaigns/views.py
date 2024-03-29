@@ -294,6 +294,7 @@ class CampaignRetrieveUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
+            
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
 
