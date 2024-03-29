@@ -20,6 +20,7 @@ class CampaignTasksWebHook(SamanthaCampaignsAPIView):
         }
         ```
         """
+        workspace_id = request.query_params.get("workspace_id", None)
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -40,7 +41,7 @@ class CampaignTasksWebHook(SamanthaCampaignsAPIView):
             if not task:
                 raise exceptions.NotFound(f"Task with name '{task_name}' does not exist")
             # run task
-            task()
+            task(workspace_id=workspace_id)
             msg = f"Task '{task_name}' ran successfully"
 
         else:

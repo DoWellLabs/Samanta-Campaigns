@@ -15,12 +15,13 @@ task_logger = get_logger(
 )
 
 
-def crawl_campaigns_leads_links():
+def crawl_campaigns_leads_links(workspace_id:str):
     """
     Crawl all campaigns' leads links
     """
+    print("this is id",workspace_id)
     sys.stdout.write("Crawling lead links...\n")
-    all_campaigns = Campaign.manager.all(dowell_api_key=settings.PROJECT_API_KEY)
+    all_campaigns = Campaign.manager.all(dowell_api_key=settings.PROJECT_API_KEY,workspace_id=workspace_id)
 
     for campaign in all_campaigns:
         if not campaign.leads_links:

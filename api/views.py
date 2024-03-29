@@ -85,7 +85,8 @@ class AudienceListSortAPIView(SamanthaCampaignsAPIView):
         user = DowellUser(workspace_id=workspace_id)
         campaign_list: CampaignList = Campaign.manager.filter(
             creator_id=workspace_id, 
-            dowell_api_key=settings.PROJECT_API_KEY
+            dowell_api_key=settings.PROJECT_API_KEY,
+            workspace_id=workspace_id
         )
 
         emails = []

@@ -112,6 +112,7 @@ class CampaignMessageSerializer(serializers.Serializer):
 
     def update(self, campaign_message: CampaignMessage, validated_data):
         dowell_api_key = self.context.get("dowell_api_key", None)
+        workspace_id = self.context.get("workspace_id", None)
         sender = validated_data.get("sender", None)
 
         if sender is not None:
@@ -124,5 +125,6 @@ class CampaignMessageSerializer(serializers.Serializer):
         for attr, value in validated_data.items():
             setattr(campaign_message, attr, value)
         campaign_message.is_default = False
-        campaign_message.save(dowell_api_key=dowell_api_key)
+        print("serialiezer workspce_id",workspace_id)
+        campaign_message.save(dowell_api_key=dowell_api_key,workspace_id=workspace_id)
         return campaign_message

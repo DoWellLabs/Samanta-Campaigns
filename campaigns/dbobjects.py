@@ -215,7 +215,7 @@ class Campaign(DatacubeObject):
             return False, "Some leads links have not been crawled", math.ceil(percentage_ready)
         percentage_ready += 25.000
 
-        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(self)
+        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(self.broadcast_type,self.no_of_audiences,campaign_creator)
         if not ans:
             return ans, "You do not have sufficient credits to run this campaign. Please top up.", math.ceil(percentage_ready)
         percentage_ready += 25.000

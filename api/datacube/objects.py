@@ -62,6 +62,7 @@ class DatacubeObject(DBObject):
         :param using: The database to use. If not specified, the default database is used.
         :param workspace_id: The workspace ID  used to determine the collection name.
         """
+        print("this is the workspace_id",workspace_id)
         collection_name = f"{workspace_id}_samantha_campaign" if workspace_id else collection_name
         
         print("First Save call", collection_name)

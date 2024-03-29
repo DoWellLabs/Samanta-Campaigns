@@ -37,8 +37,7 @@ def check_campaign_creator_has_sufficient_credits_to_run_campaign_once(broadcast
 
 def construct_dowell_email_template(
     subject: str,
-    body: str, 
-    recipient: str, 
+    body: str,  
     image_url: str = None,
     unsubscribe_link: str = None
 ):
@@ -55,8 +54,6 @@ def construct_dowell_email_template(
         raise TypeError("subject should be of type str")
     if not isinstance(body, str):
         raise TypeError("body should be of type str")
-    if not isinstance(recipient, str):
-        raise TypeError("recipient should be of type str")
     if image_url and not is_valid_url(image_url):
         raise ValueError("image_url should be a valid url")
     if unsubscribe_link and not is_valid_url(unsubscribe_link):
@@ -107,59 +104,38 @@ def construct_dowell_email_template(
                 style="font-size: 14px; 
                 font-weight: 600;"
               >
-                Hey {recipient},
               </p>
               {body}  <!-- Body is inserted here -->
             </section>
 
             {unsubscribe_section}
           </main>
-
-          <footer
-            style="
-              background-color: #005733;
-              color: #fff;
-              text-align: center;
-              padding: 10px;
-            "
-          >
-            <a
-              href="https://www.uxlivinglab.org/"
-              style="
-                text-align: center;
-                color: white;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-              "
-              >DoWell UX Living Lab</a
-            >
-            <p style="margin-top: 10px; font-size: 13px">
-              &copy; {year}-All rights reserved.
-            </p>
-          </footer>
         </div>
       </body>
     </html>
     """
     if unsubscribe_link:
         unsubscribe_section = f"""
-        <section 
-          style="margin-top: 16px;
-          margin-bottom: 10px;
-          text-align: center;"
+        <footer
+          style="
+            background-color: #005733;
+            color: #fff;
+            text-align: center;
+            padding: 10px;
+          "
         >
-          <p style="font-size: 12px">
-            <a 
-              href="{unsubscribe_link}" 
-              style="font-weight: 600;
+          <a 
+            href="{unsubscribe_link}" 
+            style="
               text-decoration: none;
-              color: #005733"
-            >
-              Unsubscribe
-            </a>
-             from this campaign
-          </p>
-        </section>
+              color: white;
+              margin-bottom: 10px;
+              display: block;
+            "
+          >
+            Unsubscribe
+          </a>
+        </footer>
         """
     else:
         unsubscribe_section = ""
@@ -169,11 +145,9 @@ def construct_dowell_email_template(
 
     return template.format(
         subject=subject.title(),
-        body=body_paragraphs,  # Replaced body with paragraphs
-        recipient=recipient, 
+        body=body_paragraphs,  # Replaced body with paragraphs 
         image_url=image_url or "https://dowellfileuploader.uxlivinglab.online/hr/logo-2-min-min.png",
         unsubscribe_section=unsubscribe_section,
-        year=timezone.now().year
     )
 
 

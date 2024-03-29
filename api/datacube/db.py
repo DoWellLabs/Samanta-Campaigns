@@ -90,7 +90,12 @@ class DatacubeDB(ObjectDatabase):
         try:
             _resp = datacube.fetch(_from=collection_name, limit=limit, offset=offset)
             # print(_resp)
-            value ="creator_id" if wanted is None else "campaign_id"
+            if wanted =="message":
+               value = "campaign_id"
+            elif wanted =="reports":
+                value = "events"
+            else:
+                value = "creator_id"
             print(value)
             documents = [obj for obj in _resp if obj.get(value)]
         except ConnectionError as exc:
