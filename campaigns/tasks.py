@@ -41,11 +41,12 @@ def crawl_campaigns_leads_links(workspace_id:str):
 
 
 
-def run_due_campaigns():
+def run_due_campaigns(workspace_id):
+    print("this is the workspace_id: ", workspace_id)
     """Run all campaigns that are due"""
     sys.stdout.write("Running due campaigns...\n")
     # Get all campaigns that are due today
-    due_campaigns = Campaign.manager.due(dowell_api_key=settings.PROJECT_API_KEY)
+    due_campaigns = Campaign.manager.due(dowell_api_key=settings.PROJECT_API_KEY,workspace_id=workspace_id)
 
     for campaign in due_campaigns:
         # Register all campaign as due today
@@ -77,12 +78,12 @@ def run_due_campaigns():
 
 
 
-def deactivate_active_but_expired_campaigns():
+def deactivate_active_but_expired_campaigns(workspace_id):
     """Deactivate all campaigns that have expired"""
     sys.stdout.write("Deactivating active but expired campaigns...\n")
     # Fetch all expired campaigns but only active ones because by default,
     # the inactive ones cannot be activated after they have expired.
-    active_but_expired_campaigns = Campaign.manager.expired(dowell_api_key=settings.PROJECT_API_KEY).active()
+    active_but_expired_campaigns = Campaign.manager.expired(dowell_api_key=settings.PROJECT_API_KEY,workspace_id=workspace_id).active()
 
     for campaign in active_but_expired_campaigns:
         try:
