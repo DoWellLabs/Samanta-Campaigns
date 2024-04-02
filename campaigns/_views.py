@@ -13,12 +13,10 @@ from api.utils import _send_mail
 from api.database import SamanthaCampaignsDB
 from api.dowell.datacube import DowellDatacube
 from rest_framework.response import Response
-from .helpers import CustomResponse
-from rest_framework.decorators import api_view
+from .helpers import CustomResponse,CampaignHelper
+import requests
+import time
 import os
-
-
-
 
 
 class UserRegistrationView(SamanthaCampaignsAPIView):
@@ -405,6 +403,7 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         }
         ```
         """
+        start_time = time.time()
         workspace_id = request.query_params.get("workspace_id", None)
         user = DowellUser(workspace_id=workspace_id)
         data = request.data
@@ -469,6 +468,10 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
                 "percentage_ready": percentage_ready
             }
         }
+        
+        end_time = time.time()
+
+        print(f"Campaign View: {end_time-start_time}")
 
         return response.Response(
             data=data,

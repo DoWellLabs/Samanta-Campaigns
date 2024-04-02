@@ -140,7 +140,7 @@ class DatacubeDB(ObjectDatabase):
         preferred_dbname = obj.config.preferred_db
         datacube = DowellDatacube(db_name=preferred_dbname or self.name, dowell_api_key=dowell_api_key)
         # collection_name = collection_name
-        print("this is the collection_name", collection_name)
+        # print("this is the collection_name", collection_name)
         document = obj.to_dbvalue()
 
         try:
@@ -187,6 +187,7 @@ class DatacubeDB(ObjectDatabase):
         datacube = DowellDatacube(db_name=preferred_dbname or self.name, dowell_api_key=dowell_api_key)
         new_document = obj.to_dbvalue()
         filter = {"_id": obj.pkey}
+    
 
         try:
             datacube.update(_in=collection_name, filter=filter, data=new_document)

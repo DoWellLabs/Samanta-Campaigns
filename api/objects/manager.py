@@ -275,9 +275,16 @@ class ObjectManager:
         :param kwargs: keyword arguments of the form `attribute=value` to be used to create the Object.
         :returns: the created `Object`.
         """
+        import time
+        
+        start_time = time.time()
         obj = self.object_class(**kwargs)
         if save and obj.supports_db:
             obj.save()
+            
+        end_time = time.time()
+        
+        print("Actually create call", start_time, end_time)
         return obj
     
     

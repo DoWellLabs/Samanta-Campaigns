@@ -34,6 +34,10 @@ class CampaignSerializer(serializers.Serializer):
     
     
     def create(self, validated_data):
+        
+        import time
+        
+        start_time = time.time()
         dowell_api_key = self.context.get("dowell_api_key", None)
         creator = self.context.get("creator", None)
         if not creator:
@@ -52,6 +56,11 @@ class CampaignSerializer(serializers.Serializer):
             campaign.add_leads_link(link)
 
         campaign.save(dowell_api_key=dowell_api_key)
+        
+        end_time = time.time()
+        
+        print(f"Time taken to create campaign: {end_time - start_time} seconds")
+        
         return campaign
 
     
@@ -83,6 +92,9 @@ class CampaignMessageSerializer(serializers.Serializer):
     
     
     def create(self, validated_data):
+        import time
+        
+        start_time = time.time()
         campaign = self.context.get("campaign", None)
         dowell_api_key = self.context.get("dowell_api_key", None)
         if not campaign:
@@ -107,6 +119,10 @@ class CampaignMessageSerializer(serializers.Serializer):
             if not is_phonenumber(validated_data["sender"]):
                 raise exceptions.ValidationError("sender must be a valid phone number")
         collection_name = f"{campaign.creator_id}_samantha_campaign"
+        
+        end_time = time.time()
+        
+        print(f"Time taken to create campaign message from serializer: {end_time - start_time} seconds")
         return CampaignMessage.manager.create(dowell_api_key=dowell_api_key, **validated_data, collection_name=collection_name)
     
 

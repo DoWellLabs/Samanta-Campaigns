@@ -300,9 +300,15 @@ class Campaign(DatacubeObject):
         :returns: Campaign message object associated with this campaign 
         or None if no message is associated with this campaign
         """
+        import time
+        
+        start_time = time.time()
+        
         workspace_id = self.creator_id
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
         msg = CampaignMessage.manager.filter(campaign_id=self.pkey, dowell_api_key=dowell_api_key,workspace_id=workspace_id, wanted="message").first()
+        end_time = time.time()
+        print(f"get_message took to get messages {end_time-start_time} seconds")
         return msg
     
 
@@ -319,6 +325,8 @@ class Campaign(DatacubeObject):
     
     
     def save(self, dowell_api_key: str = None, using: ObjectDatabase = None):
+        import time
+        start_time = time.time()
         if self.saved:
             try:
                 #todo change this
@@ -341,10 +349,13 @@ class Campaign(DatacubeObject):
                 self.deactivate(save=False)
             except:
                 pass
-
+        workspace_id = self.creator_id
+        print("the id workspace id",workspace_id)
         # get creator_id to use to save a campaign to creator's collection
         # If no api is not provided use campaign creator's api key
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
+        end_time = time.time() 
+        print(f"time is took to call first save campaign: {end_time-start_time}")
         return super().save(using=using, dowell_api_key=dowell_api_key , workspace_id=workspace_id)
     
 

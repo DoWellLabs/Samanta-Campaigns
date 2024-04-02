@@ -395,7 +395,11 @@ class DBObject(SupportsDBOperations, Object, metaclass=DBObjectMeta):
         :param collection_name: The name of the collection to save the object to.
         :param kwargs: keyword arguments to pass to database on save.
         """
+        
         # print("my collection",collection_name)
+        import time
+
+        start_time = time.time()
         using = using or self.db()
         if not using:
             raise ValueError("No database client found.")
@@ -408,7 +412,7 @@ class DBObject(SupportsDBOperations, Object, metaclass=DBObjectMeta):
             
         self.run_validations() # Run validations before saving
         if not self.pkey: # If the Object does not have a primary key, it has not been saved to the database yet
-            print("FOR INSERT", collection_name)
+            # print("FOR INSERT", collection_name)
             pk = using.insert(self,collection_name=collection_name, **kwargs)
             if not pk:
                 raise DatabaseError("An error occurred while saving the Object to the database. Primary key was not returned.")
@@ -421,6 +425,10 @@ class DBObject(SupportsDBOperations, Object, metaclass=DBObjectMeta):
                 raise DatabaseError("An error occurred while saving the Object to the database.")
             
         post_save.send(sender=self.__class__, instance=self, using=using)
+        
+        end_time = time.time()
+        
+        print(f"Time taken to save last call: {end_time - start_time} seconds")
         return self
     
 

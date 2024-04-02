@@ -832,7 +832,7 @@ async def async_send_sms(
     if not client:
         client = _async_client
     response = await client.post(
-        url=f"https://100085.pythonanywhere.com/api/v1/dowell-sms/{user.api_key}/", 
+        url=f"https://100085.pythonanywhere.com/api/v1/dowell-sms/{settings.PROJECT_API_KEY}/", 
         json={
             "sender" : recipient_name or "Recipient",
             "recipient" : recipient_phonenumber,

@@ -62,10 +62,16 @@ class DatacubeObject(DBObject):
         :param using: The database to use. If not specified, the default database is used.
         :param workspace_id: The workspace ID  used to determine the collection name.
         """
-        print("this is the workspace_id",workspace_id)
+        # print("this is the workspace_id",workspace_id)
+        import time 
+        
+        start_time = time.time()
         collection_name = f"{workspace_id}_samantha_campaign" if workspace_id else collection_name
         
-        print("First Save call", collection_name)
+        # print("First Save call", collection_name)
+        
+        end_time = time.time()
+        print(f"Time taken to save second: {end_time - start_time}")
         return super().save(using=using, dowell_api_key=dowell_api_key, collection_name=collection_name)
     
 

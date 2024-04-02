@@ -131,6 +131,9 @@ class DowellDatacube:
 
     def insert(self, _into: str, *, data: Dict[str, Any], filter: Optional[Dict[str, Any]] = None):
         print(_into)
+        import time 
+        
+        start_time = time.time()
         """
         Initiates a new connection to create a new record in the specified collection of the database.
 
@@ -160,6 +163,10 @@ class DowellDatacube:
 
         response = requests.post(url=self.connection_urls[operation], json=payload)
         self._handle_response_errors(response)
+        
+        end_time = time.time()
+        
+        print(f"Time took to insert to database: {end_time - start_time}")
         return response.json()["data"]
     
 
