@@ -13,20 +13,51 @@ from api.utils import _send_mail
 from api.database import SamanthaCampaignsDB
 from api.dowell.datacube import DowellDatacube
 from rest_framework.response import Response
-from .helpers import CustomResponse,CampaignHelper
-import requests
+from .helpers import CustomResponse
+from rest_framework.decorators import api_view
+import os
+
+
+
 
 
 class UserRegistrationView(SamanthaCampaignsAPIView):
     """
     Endpoint for user registration related operations to create a new users collection.
     """
+    def append_workspace_id(self, workspace_id):
+        """
+        Append workspace ID to a text file if it does not already exist.
+
+        :param workspace_id: The workspace ID to be appended.
+        """
+        workspace_ids = self.get_workspace_ids()  # Retrieve existing workspace IDs
+        if workspace_id not in workspace_ids:  # Check if the ID does not already exist
+            with open("workspace_ids.txt", "a") as file:
+                file.write(workspace_id + "\n")
+
+    def get_workspace_ids(self):
+        """
+        Retrieve workspace IDs from the text file.
+
+        :return: A list of workspace IDs.
+        """
+        if os.path.exists("workspace_ids.txt"):
+            with open("workspace_ids.txt", "r") as file:
+                workspace_ids = file.read().splitlines()
+            return workspace_ids
+        else:
+            # Create the file if it doesn't exist
+            with open("workspace_ids.txt", "a"):
+                pass
+            return []
+
     def get(self, request):
         """
         Get all collections and check if there's a collection created by the user.
 
         This method retrieves collections from the database and checks if a collection created by the user exists.
-        
+
         :param request: The HTTP request object.
         :return: A response containing collection data or a message indicating the status of the operation.
         """
@@ -35,8 +66,9 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
         collection_name = f"{workspace_id}_samantha_campaign"
         user = DowellUser(workspace_id=workspace_id)
         user_api_key = user.api_key
+        self.append_workspace_id(workspace_id)  # Append workspace ID
 
-        dowell_datacube = DowellDatacube(db_name=SamanthaCampaignsDB.name, dowell_api_key=user_api_key)
+        dowell_datacube = DowellDatacube(db_name=SamanthaCampaignsDB.name, dowell_api_key=settings.PROJECT_API_KEY)
         print("called user registered")
 
         try:
@@ -46,6 +78,7 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
             if not response:
                 dowell_datacube.create_collection(name=collection_name)
                 dowell_datacube.insert(collection_name, data={"database_created": False})
+                self.append_workspace_id(workspace_id)  # Append workspace ID
                 return Response(
                     {
                         "success": False,
@@ -53,39 +86,39 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
                                 f"New collection  {collection_name} has been created."
                     }, status=200)
             else:
-                    database_created = any(item.get('database_created', False) for item in response)
-                    if not database_created:
-                        id_not_created = next((item['_id'] for item in response if not item.get('database_created')), None)
-                        return Response(
-                            {
-                                "success": False,
-                                "message": "Database not created",
-                                "id": id_not_created
-                            },
-                            status=status.HTTP_200_OK
-                        )
-                    else:
-                        response_data = {
-                            "success": True,
-                            "database_created": database_created,
-                            "message": "Database already created"
-                        }
-                        
-                        return Response(
-                            data=response_data,
-                            status=status.HTTP_200_OK
-                        )
-                
-        except Exception as err :
+                database_created = any(item.get('database_created', False) for item in response)
+                print(database_created)
+                if not database_created:
+                    id_not_created = next((item['_id'] for item in response if not item.get('database_created')), None)
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Database not created",
+                            "id": id_not_created
+                        },
+                        status=status.HTTP_200_OK
+                    )
+                else:
+                    response_data = {
+                        "success": True,
+                        "database_created": database_created,
+                        "message": "Database already created"
+                    }
+
+                    return Response(
+                        data=response_data,
+                        status=status.HTTP_200_OK
+                    )
+
+        except Exception as err:
             return CustomResponse(False, str(err), None, status.HTTP_501_NOT_IMPLEMENTED)
-             
 
     def post(self, request):
         """
         Update database with user registration data.
 
         This method updates the database with user registration data.
-        
+
         :param request: The HTTP request object.
         :return: A response indicating the success or failure of the database update operation.
         """
@@ -96,7 +129,7 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
                     "success": False,
                     "message": "Workspace ID is required"
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             id = request.data.get("id")
             if not id:
                 return Response({
@@ -133,7 +166,6 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
                 "success": False,
                 "message": str(err)
             }, status=status.HTTP_400_BAD_REQUEST)
-
 class TestEmail(SamanthaCampaignsAPIView):
     def post(self, request, *args, **kwargs):
         try:
@@ -160,7 +192,7 @@ class TestEmail(SamanthaCampaignsAPIView):
 
                 _send_mail(
                     subject=subject,
-                    body=construct_dowell_email_template(
+                    body=self.construct_dowell_email_template(
                         subject=subject,
                         body=body,
                         unsubscribe_link="https://samanta-campaigns.flutterflow.app/"
@@ -186,6 +218,118 @@ class TestEmail(SamanthaCampaignsAPIView):
                 "message": f"Failed to send email. Error: {str(e)}"
             }, status=500)
 
+    def construct_dowell_email_template(
+        self,
+        subject: str,
+        body: str,  
+        image_url: str = None,
+        unsubscribe_link: str = None
+    ):
+        """
+        Convert a text to an samantha campaigns email template
+
+        :param subject: The subject of the email
+        :param body: The body of the email. (Can be html too)
+        :param recipient: The recipient of the email
+        :param image_url: The url of the image to include in the email
+        :param unsubscribe_link: The link to unsubscribe from the email
+        """
+        if not isinstance(subject, str):
+            raise TypeError("subject should be of type str")
+        if not isinstance(body, str):
+            raise TypeError("body should be of type str")
+        
+        template = """
+        <!doctype html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>{subject}</title>
+        </head>
+        <body
+            style="
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            "
+        >
+            <div style="width: 100%; background-color: #ffffff">
+            <header
+                style="
+                color: #fff;
+                display: flex;
+                text-align: center;
+                justify-content: center;
+                padding: 5px;
+                "
+            >
+                <img
+                src="{image_url}"
+                height="140px"
+                width="140px"
+                style="display: block; margin: 0 auto"
+                />
+            </header>
+            <article style="margin-top: 20px; text-align: center">
+                <h2>{subject}</h2>
+            </article>
+
+            <main style="padding: 20px">
+                <section style="margin: 20px">
+                <p
+                    style="font-size: 14px; 
+                    font-weight: 600;"
+                >
+                </p>
+                {body}  <!-- Body is inserted here -->
+                </section>
+
+                {unsubscribe_section}
+            </main>
+            </div>
+        </body>
+        </html>
+        """
+        if unsubscribe_link:
+            unsubscribe_section = f"""
+            <footer
+            style="
+                background-color: #005733;
+                color: #fff;
+                text-align: center;
+                padding: 10px;
+            "
+            >
+            <a 
+                href="{unsubscribe_link}" 
+                style="
+                text-decoration: none;
+                color: white;
+                margin-bottom: 10px;
+                display: block;
+                "
+            >
+                Unsubscribe
+            </a>
+            </footer>
+            """
+        else:
+            unsubscribe_section = ""
+
+        # Wrap each paragraph in <p> tags
+        body_paragraphs = "\n".join(f"<p style='font-size: 14px'>{paragraph.strip()}</p>" for paragraph in body.split("\n\n"))
+
+        return template.format(
+            subject=subject.title(),
+            body=body_paragraphs,  # Replaced body with paragraphs 
+            image_url=image_url or "https://dowellfileuploader.uxlivinglab.online/hr/logo-2-min-min.png",
+            unsubscribe_section=unsubscribe_section,
+        )
+
 class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
     
     def get(self, request, *args, **kwargs):
@@ -204,9 +348,10 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
             raise exceptions.NotAcceptable("Invalid page number or page size.")
         
         user = DowellUser(workspace_id=workspace_id)
+        print("called")
         campaigns = Campaign.manager.filter(
             creator_id=workspace_id, 
-            dowell_api_key=user_api_key, 
+            dowell_api_key="1b834e07-c68b-4bf6-96dd-ab7cdc62f07f", 
             limit=page_size,
             offset=(page_number - 1) * page_size,
             workspace_id=workspace_id
