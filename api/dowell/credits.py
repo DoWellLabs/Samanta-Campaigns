@@ -174,7 +174,7 @@ class DeductUserCreditsOnServiceUse:
             url=settings.DOWELL_PROCESS_SERVICES_URL,
             params={
                 "type": f"{self.service.type.lower().replace(' ', '_')}_service",
-                "api_key": self.user.api_key,
+                "api_key": self.settings.PROJECT_API_KEY,
             },
             json=payload
         )

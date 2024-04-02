@@ -15,6 +15,7 @@ from api.dowell.datacube import DowellDatacube
 from rest_framework.response import Response
 from .helpers import CustomResponse,CampaignHelper
 import requests
+import time
 
 
 class UserRegistrationView(SamanthaCampaignsAPIView):
@@ -34,7 +35,7 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         collection_name = f"{workspace_id}_samantha_campaign"
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
 
         dowell_datacube = DowellDatacube(db_name=SamanthaCampaignsDB.name, dowell_api_key=user_api_key)
         print("called user registered")
@@ -106,7 +107,7 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
 
             collection_name = f"{workspace_id}_samantha_campaign"
             user = DowellUser(workspace_id=workspace_id)
-            user_api_key = user.api_key
+            user_api_key = settings.PROJECT_API_KEY
 
             dowell_datacube = DowellDatacube(db_name=SamanthaCampaignsDB.name, dowell_api_key=settings.PROJECT_API_KEY)
             updated = dowell_datacube.update(
@@ -139,7 +140,7 @@ class TestEmail(SamanthaCampaignsAPIView):
         try:
             workspace_id = request.query_params.get("workspace_id")
             user = DowellUser(workspace_id=workspace_id)
-            user_api_key = user.api_key
+            user_api_key = settings.PROJECT_API_KEY
 
             campaign_id = request.data.get("campaign_id")
             recipient_address = request.data.get("recipient_address")
@@ -196,7 +197,7 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         page_size = request.query_params.get("page_size", 16)
         page_number = request.query_params.get("page_number", 1)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         try:
             page_number = int(page_number)
             page_size = int(page_size)
@@ -264,9 +265,10 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         }
         ```
         """
+        start_time = time.time()
         workspace_id = request.query_params.get("workspace_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -329,6 +331,10 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
                 "percentage_ready": percentage_ready
             }
         }
+        
+        end_time = time.time()
+
+        print(f"Campaign View: {end_time-start_time}")
 
         return response.Response(
             data=data,
@@ -347,7 +353,7 @@ class CampaignRetrieveUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
         
@@ -388,7 +394,7 @@ class CampaignRetrieveUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -424,7 +430,7 @@ class CampaignRetrieveUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -470,7 +476,7 @@ class CampaignRetrieveUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
         
@@ -497,7 +503,7 @@ class CampaignActivateDeactivateAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
     
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
@@ -536,7 +542,7 @@ class CampaignAudienceListAddAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
         
@@ -568,7 +574,7 @@ class CampaignAudienceListAddAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -653,7 +659,7 @@ class CampaignMessageCreateRetreiveAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
         
@@ -689,7 +695,7 @@ class CampaignMessageCreateRetreiveAPIView(SamanthaCampaignsAPIView):
         """
         workspace_id = request.query_params.get("workspace_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -735,7 +741,7 @@ class CampaignMessageUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         campaign_id = kwargs.get("campaign_id", None)
         message_id = kwargs.get("message_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -785,7 +791,7 @@ class CampaignMessageUpdateDeleteAPIView(SamanthaCampaignsAPIView):
         campaign_id = kwargs.get("campaign_id", None)
         message_id = kwargs.get("message_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         data = request.data
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
@@ -837,7 +843,7 @@ class CampaignLaunchAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         campaign_id = kwargs.get("campaign_id", None)
         user = DowellUser(workspace_id=workspace_id)
-        user_api_key = user.api_key
+        user_api_key = settings.PROJECT_API_KEY
         if not campaign_id:
             raise exceptions.NotAcceptable("Campaign id must be provided.")
         
