@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  django:
+    image: django
+    container_name: django
+    build: .
+    ports:
+      - 8000:8000
+    expose:
+      - "8000"
+    volumes:
+      - .:/myproject
+    networks:
+      - webnet
+
+  nginx:
+    build: ./nginx
+    image: nginx:latest
+    container_name: "nginx_con"
+    depends_on:
+      - django 
+      
+    ports:
+      - "80:80"
+      - 443:443
+    networks:
+      - webnet
+
+
+  
+networks:
+  webnet:
+    external: true
+
+    
