@@ -21,4 +21,4 @@ COPY . /myproject/
 EXPOSE 8000
 
 # Update the CMD to run uWSGI for your application
-CMD ["gunicorn", "geo_search_api.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "samantha_campaigns.wsgi:application", "--bind", "0.0.0.0:8000"]
