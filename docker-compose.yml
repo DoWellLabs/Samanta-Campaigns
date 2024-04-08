@@ -1,19 +1,22 @@
 version: "3.8"
 
 services:
-  django:
-    image: python:3.9
-    container_name: django
+  samanta-campaigns-backend:
     build: 
       context: .
-      dockerfile: Dockerfile
+    container_name: samanta-campaigns-backend
+    restart: always
+    command: python3 manage.py runserver 0.0.0.0:8000
+
     ports:
-      - "8000:8000"
+      - 8000:8000
+    expose:
+      - "8000"
     volumes:
-      - .:/myproject
+      - .:/usr/src/app
     networks:
-      - webnet
+      - default
 
 networks:
-  webnet:
-    external: true
+    default:
+        name: webnet
