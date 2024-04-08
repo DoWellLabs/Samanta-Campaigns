@@ -18,6 +18,6 @@ COPY . /usr/src/app
 # Install dependencie
 
 # Expose the port on which the Django app will run
-EXPOSE 8000
+EXPOSE 8001
 
 # Update the CMD to run uWSGI for your application
