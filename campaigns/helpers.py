@@ -21,6 +21,8 @@ from api.validators import (
 )
 from api.dowell.user import DowellUser
 from .objectlists import CampaignAudienceLeadsLinkList
+import requests
+from django.core.exceptions import ValidationError
 
 
 # CAMPAIGN SIGNALS
@@ -150,3 +152,150 @@ class CampaignHelper:
 
     def creator(self):
         return DowellUser(workspace_id=self.workspace_id)
+
+
+class SendEmail():
+    def sendmail(self, workspace_id):
+        user = DowellUser(workspace_id=workspace_id)
+        subject = "Crawling lead links done"
+        body_message = (
+            "Dear User,\n\n"
+            "We're pleased to inform you that the lead links have been successfully crawled. "
+            "You can now return to the application to launch your campaigns with confidence. "
+            "This significant milestone ensures that your campaigns are built upon the latest and most accurate data, "
+            "empowering you to make informed decisions and drive impactful results. "
+            "We appreciate your patience throughout this process and look forward to seeing the positive outcomes of your campaigns. "
+            "Should you have any questions or require further assistance, please don't hesitate to reach out to our support team. "
+            "Thank you for choosing our platform.\n\n"
+        )
+        toemail = user.email
+        fromemail = settings.PROJECT_EMAIL
+        toname = user.username
+        fromname = settings.PROJECT_NAME
+        res = self.send_mail(
+            subject=subject,
+            body=self.construct_dowell_email_template(subject=subject, body=body_message),
+            sender_address=fromemail,
+            recipient_address=toemail,
+            sender_name=fromname,
+            recipient_name=toname
+        )
+        print(res)
+        return res
+
+    def send_mail(
+        subject: str, 
+        body: str, 
+        sender_address: str, 
+        recipient_address: str, 
+        sender_name: str,
+        recipient_name: str, 
+        ):
+        """
+        Sends mail using Dowell Email API.
+
+        #### Private method. Use responsibly.
+        """
+        for address in (recipient_address, sender_address):
+            if not is_email(address):
+                raise ValidationError(f"{address} is not a valid email address!")
+        if not body:
+            raise ValueError("body of mail cannot be empty")
+        if not subject:
+            raise ValueError("subject of mail cannot be empty")
+        if not sender_name:
+            raise ValueError("sender_name must be provided")
+        if not recipient_name:
+            raise ValueError("recipient_name must be provided")
+        
+        response = requests.post(
+            url=settings.DOWELL_MAIL_URL,
+            data={
+                "toname": recipient_name,
+                "toemail": recipient_address,
+                "fromname": sender_name,
+                "fromemail": sender_address,
+                "subject": subject,
+                "email_content": body
+            },
+        )
+        if response.status_code != 200:
+            response.raise_for_status()
+        if not response.json()["success"]:
+            raise Exception(response.json()["message"])
+        return None
+    def construct_dowell_email_template(
+        self,
+        subject: str,
+        body: str,
+    ):
+        """
+        Convert a text to an samantha campaigns email template
+
+        :param subject: The subject of the email
+        :param body: The body of the email. (Can be html too)
+        :param recipient: The recipient of the email
+        :param image_url: The url of the image to include in the email
+        :param unsubscribe_link: The link to unsubscribe from the email
+        """
+        if not isinstance(subject, str):
+            raise TypeError("subject should be of type str")
+        if not isinstance(body, str):
+            raise TypeError("body should be of type str")
+        
+        template = """
+        <!doctype html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>{subject}</title>
+        </head>
+        <body
+            style="
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            "
+        >
+            <div style="width: 100%; background-color: #ffffff">
+            <header
+                style="
+                color: #fff;
+                display: flex;
+                text-align: center;
+                justify-content: center;
+                padding: 5px;
+                "
+            >
+            </header>
+            <article style="margin-top: 20px; text-align: center">
+                <h2>{subject}</h2>
+            </article>
+
+            <main style="padding: 20px">
+                <section style="margin: 20px">
+                <p
+                    style="font-size: 14px; 
+                    font-weight: 600;"
+                >
+                </p>
+                {body}  <!-- Body is inserted here -->
+                </section>
+            </main>
+            </div>
+        </body>
+        </html>
+        """
+        
+
+        # Wrap each paragraph in <p> tags
+        body_paragraphs = "\n".join(f"<p style='font-size: 14px'>{paragraph.strip()}</p>" for paragraph in body.split("\n\n"))
+
+        return template.format(
+            subject=subject.title(),
+            body=body_paragraphs
+        )
