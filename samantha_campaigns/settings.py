@@ -199,7 +199,7 @@ DOWELL_MAIL_URL = "https://100085.pythonanywhere.com/api/uxlivinglab/email/"
 
 DOWELL_EMAIL_VALIDATOR_URL = "https://100085.pythonanywhere.com/api/uxlivinglab/verify-email/"
 
-DOWELL_WEBSITE_CRAWLER_URL = "https://www.uxlive.me/api/website-info-extractor/"
+DOWELL_WEBSITE_CRAWLER_URL = "https://uxlivinglab100106.pythonanywhere.com/api/website-info-extractor/"
 
 
 ##########################
