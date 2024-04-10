@@ -299,3 +299,33 @@ class SendEmail():
             subject=subject.title(),
             body=body_paragraphs
         )
+        
+class ContactUs:
+    def __init__(self):
+        self.url = "https://www.uxlive.me"
+
+
+
+    def link_extractor(self, links):
+        route = "/api/contact-us-extractor/"
+        
+        payload = {"page_links": links}
+        headers = {"Content-Type": "application/json"}
+
+        response = requests.request("POST", self.url+route, headers=headers, data=payload)
+
+        print(response.text)
+        
+        return {"data": response.text, "status": response.status_code}
+    
+    def submit_form(self, data, links):
+        route = "/api/submit-contact-form/"
+        
+        payload = {"form_data": data, "page_links": links}
+        headers = {"Content-Type": "application/json"}
+        
+        response = requests.request("POST", self.url+route, headers=headers, data=payload)
+
+        print(response.text)
+        
+        return {"status": response.status_code}

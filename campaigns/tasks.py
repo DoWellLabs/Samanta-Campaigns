@@ -36,6 +36,7 @@ def crawl_campaigns_leads_links(workspace_id:str):
         finally:
             campaign.save(dowell_api_key=settings.PROJECT_API_KEY)
             continue
+    
     sys.stdout.write("Done crawling lead links.\n")
     return None
 

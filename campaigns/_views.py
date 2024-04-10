@@ -13,7 +13,7 @@ from api.utils import _send_mail
 from api.database import SamanthaCampaignsDB
 from api.dowell.datacube import DowellDatacube
 from rest_framework.response import Response
-from .helpers import CustomResponse,CampaignHelper
+from .helpers import CustomResponse,CampaignHelper, ContactUs
 import requests
 import time
 import os
@@ -162,6 +162,7 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
                 "success": False,
                 "message": str(err)
             }, status=status.HTTP_400_BAD_REQUEST)
+            
 class TestEmail(SamanthaCampaignsAPIView):
     def post(self, request, *args, **kwargs):
         try:
@@ -988,9 +989,65 @@ class CampaignLaunchAPIView(SamanthaCampaignsAPIView):
         )
     
 
+class GetScrapingLink(SamanthaCampaignsAPIView):
+    """Payload for fetching link data"""
+    """
+        {
+            "links": [ "https://preview.colorlib.com/theme/bootstrap/contact-form-03/", "https://giantmillers.co.ke/contact/"]
+        }
+    """
+    def post(self, request, *args, **kwargs):
+        
+        links = request.data.get("links", [])
+        
+        request_response = ContactUs().link_extractor(links)
+    
+        if request_response.get("status") == 200:
+            return Response({"data": request_response.get("data")}, status=request_response.get("status"))
+        else:
+            return Response({"data": "Request failed"}, status=request_response.get("status"))
+        
+        
+
+class SumitContactUsForm(SamanthaCampaignsAPIView):
+    """payload for SumitContactUs"""
+    """
+        "links": [
+            "https://preview.colorlib.com/theme/bootstrap/contact-form-03/", 
+            "https://giantmillers.co.ke/contact/"
+        ],
+        data: {
+            "name": "text",
+            "email": "email@gmail.com",
+            "subject": "text",
+            "message": "textarea",
+            "s": "text",
+            "your-name": "text",
+            "your-email": "email@gmail.com",
+            "phonenumber": "tel",
+            "your-subject": "text",
+            "your-message": "textarea"
+        }
+    """
+    def post(self, request, *args, **kwargs):
+        
+        data = request.data.get("data", [])
+        
+        links  = request.data.get("links", [])
+        
+        request_response = ContactUs().submit_form(data, links)
+        if request_response.get("status") == 200:
+            return Response({"data": "Request sent successfully"}, status=request_response.get("status"))
+        else:
+            return Response({"data": "Request failed"}, status=request_response.get("status"))
+        
+        
+        
 
 
 campaign_list_create_api_view = CampaignListCreateAPIView.as_view()
+get_link_data_view = GetScrapingLink.as_view()
+submit_contact_us_view = SumitContactUsForm.as_view()
 campaign_retreive_update_delete_api_view = CampaignRetrieveUpdateDeleteAPIView.as_view()
 campaign_activate_deactivate_api_view = CampaignActivateDeactivateAPIView.as_view()
 campaign_audience_list_add_api_view = CampaignAudienceListAddAPIView.as_view()
