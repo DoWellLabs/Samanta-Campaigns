@@ -302,27 +302,28 @@ class SendEmail():
         
 class ContactUs:
     def __init__(self):
-        self.url = "https://www.uxlive.me"
-
-
+        self.url = "https://uxlivinglab100106.pythonanywhere.com"
 
     def link_extractor(self, links):
         route = "/api/contact-us-extractor/"
         
         payload = {"page_links": links}
-        headers = {"Content-Type": "application/json"}
+        print(links)
+        headers = {}
 
         response = requests.request("POST", self.url+route, headers=headers, data=payload)
 
         print(response.text)
         
-        return {"data": response.text, "status": response.status_code}
+        return {"data": response.json(), "status": response.status_code}
     
     def submit_form(self, data, links):
         route = "/api/submit-contact-form/"
         
-        payload = {"form_data": data, "page_links": links}
-        headers = {"Content-Type": "application/json"}
+        payload = {"page_links": links, "form_data": [data]}
+        headers = {}
+        
+        print([data])
         
         response = requests.request("POST", self.url+route, headers=headers, data=payload)
 
