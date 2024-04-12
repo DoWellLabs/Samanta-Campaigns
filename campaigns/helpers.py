@@ -320,10 +320,8 @@ class ContactUs:
     def submit_form(self, data, links):
         route = "/api/submit-contact-form/"
         
-        payload = {"page_links": links, "form_data": [data]}
+        payload = {"page_links": links, "form_data": data}
         headers = {}
-        
-        print([data])
         
         response = requests.request("POST", self.url+route, headers=headers, data=payload)
 

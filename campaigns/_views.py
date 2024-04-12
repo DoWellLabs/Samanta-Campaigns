@@ -1031,7 +1031,7 @@ class SumitContactUsForm(SamanthaCampaignsAPIView):
     """
     def post(self, request, *args, **kwargs):
         
-        data = request.data.get("data", {})
+        data = request.data.get("data", [])
         
         print(data)
         
