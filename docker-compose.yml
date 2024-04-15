@@ -7,7 +7,6 @@ services:
     container_name: samanta-campaigns-backend
     restart: always
     command: python3 manage.py runserver 0.0.0.0:8001
-
     ports:
       - 8001:8001
     expose:
@@ -15,8 +14,36 @@ services:
     volumes:
       - .:/usr/src/app
     networks:
-      - default
+      - webnet
+
+  script-link-task:
+    build:
+      context: .
+    container_name: script-link-task
+    restart: always
+    command: python3 scrape_links_task.py
+    volumes:
+      - .:/usr/src/app
+    
+  run-due-task:
+    build:
+      context: .
+    container_name: run-due-task
+    restart: always
+    command: python3 run_due_campaigns_task.py
+    volumes:
+      - .:/usr/src/app
+  
+  deactivate-active-task:
+    build:
+      context: .
+    container_name: deactivate-active-task
+    restart: always
+    command: python3 deactivate_expired_campaigns_task.py
+    volumes:
+      - .:/usr/src/app
+  
 
 networks:
-    default:
-        name: webnet
+  webnet:
+    name: webnet

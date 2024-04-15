@@ -17,6 +17,7 @@ from .helpers import CustomResponse,CampaignHelper
 import requests
 import time
 import os
+from .utils import fetch_email
 
 
 class UserRegistrationView(SamanthaCampaignsAPIView):
@@ -178,12 +179,18 @@ class TestEmail(SamanthaCampaignsAPIView):
                     campaign_id=campaign_id, 
                     dowell_api_key=settings.PROJECT_API_KEY,
                     workspace_id=workspace_id,
-                    wanted = "message"
+                    wanted="message"
                 )
-            print(message.data)
+            
             if message:
                 subject = message.subject
                 body = message.body
+
+                if message.is_html_email:
+                    # If the message is HTML, fetch HTML body
+                    html_body = fetch_email(message.html_email_link)
+                    if html_body:
+                        body = html_body
 
                 _send_mail(
                     subject=subject,
@@ -212,6 +219,8 @@ class TestEmail(SamanthaCampaignsAPIView):
                 "success": False,
                 "message": f"Failed to send email. Error: {str(e)}"
             }, status=500)
+
+    
 
     def construct_dowell_email_template(
         self,

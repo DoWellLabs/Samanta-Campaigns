@@ -1,4 +1,5 @@
 import requests
+import time
 
 
 def get_workspace_ids():
@@ -23,8 +24,8 @@ def request_task_run():
     for workspace_id in workspace_ids:
         print(workspace_id)
         response = session.post(
-            #url="https://samanta100111.pythonanywhere.com/api/v1/campaigns/webhooks/tasks/",
-            url=f"http://localhost:8000/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
+            url=f"https://www.uxlive.me/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
+            #url=f"http://localhost:8000/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
             json={
                 "event": "task_due",
                 "task_name": "deactivate_active_but_expired_campaigns",
@@ -37,6 +38,8 @@ def request_task_run():
 
 
 if __name__ == "__main__":
-    request_task_run()
+    while True:
+        request_task_run()
+        time.sleep(3600)
 
 # RUN THIS TASK HOURLY
