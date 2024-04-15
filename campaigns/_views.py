@@ -1033,8 +1033,6 @@ class SumitContactUsForm(SamanthaCampaignsAPIView):
         
         data = request.data.get("data", [])
         
-        print(data)
-        
         links  = request.data.get("links", [])
         
         request_response = ContactUs().submit_form(data, links)

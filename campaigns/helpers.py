@@ -323,6 +323,7 @@ class ContactUs:
         payload = {"page_links": links, "form_data": data}
         headers = {}
         
+        print(payload)
         response = requests.request("POST", self.url+route, headers=headers, data=payload)
 
         print(response.text)
