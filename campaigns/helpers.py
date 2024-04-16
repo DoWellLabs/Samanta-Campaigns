@@ -23,6 +23,7 @@ from api.dowell.user import DowellUser
 from .objectlists import CampaignAudienceLeadsLinkList
 import requests
 from django.core.exceptions import ValidationError
+from api.dowell.exceptions import UserNotFound
 
 
 # CAMPAIGN SIGNALS
@@ -156,7 +157,8 @@ class CampaignHelper:
 
 class SendEmail():
     def sendmail(self, workspace_id):
-        user = DowellUser(workspace_id=workspace_id)
+        user_info = self.get_dowell_user_info(client_admin_id=workspace_id)
+        
         subject = "Crawling lead links done"
         body_message = (
             "Dear User,\n\n"
@@ -168,10 +170,12 @@ class SendEmail():
             "Should you have any questions or require further assistance, please don't hesitate to reach out to our support team. "
             "Thank you for choosing our platform.\n\n"
         )
-        toemail = user.email
-        fromemail = settings.PROJECT_EMAIL
-        toname = user.username
-        fromname = settings.PROJECT_NAME
+        
+        toemail = user_info['email']
+        fromemail = "dowell@dowellresearch.uk"
+        toname = user_info['username']
+        fromname = "Samantha Campaigns"
+        
         res = self.send_mail(
             subject=subject,
             body=self.construct_dowell_email_template(subject=subject, body=body_message),
@@ -180,10 +184,10 @@ class SendEmail():
             sender_name=fromname,
             recipient_name=toname
         )
-        print(res)
         return res
 
     def send_mail(
+        self,
         subject: str, 
         body: str, 
         sender_address: str, 
@@ -209,7 +213,7 @@ class SendEmail():
             raise ValueError("recipient_name must be provided")
         
         response = requests.post(
-            url=settings.DOWELL_MAIL_URL,
+            url="https://100085.pythonanywhere.com/api/uxlivinglab/email/",
             data={
                 "toname": recipient_name,
                 "toemail": recipient_address,
@@ -219,6 +223,7 @@ class SendEmail():
                 "email_content": body
             },
         )
+        print(response.json())
         if response.status_code != 200:
             response.raise_for_status()
         if not response.json()["success"]:
@@ -299,6 +304,27 @@ class SendEmail():
             subject=subject.title(),
             body=body_paragraphs
         )
+    def get_dowell_user_info(self,client_admin_id: str):
+        print(client_admin_id)
+        """
+        Gets the Dowell user info for the user with the client admin id provided
+
+        :param client_admin_id: The Dowell client admin id of the user.
+        """
+        response = requests.get(
+            url="https://100105.pythonanywhere.com/api/v3/user/",
+            params={
+                "type": "get_api_key",
+                "workspace_id": client_admin_id,
+            }
+        )
+        if response.status_code == 200:
+            if response.json()["success"] == True:
+                # print("the response is",response.json()['data'])
+                return response.json()['data']
+            raise UserNotFound(client_admin_id)
+        response.raise_for_status()
+        return None
         
 class ContactUs:
     def __init__(self):
