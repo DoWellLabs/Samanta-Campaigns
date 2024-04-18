@@ -135,7 +135,7 @@ class DowellUser(DowellObjectEqualityMixin, DowellObjectMetaDataValidationMixin)
         if not isinstance(count, int):
             raise ValueError("Count must be an integer.")
         if count < 1:
-            raise ValueError("Count must be greater than 0.")
+            count = 1  # Set count to 1 if it's less than 1
         
         if not isinstance(service, DowellService):
             serv = self.get_service(service)
