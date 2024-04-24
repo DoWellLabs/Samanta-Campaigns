@@ -1044,11 +1044,19 @@ class SumitContactUsForm(SamanthaCampaignsAPIView):
         
         links  = request.data.get("links", [])
         
-        request_response = ContactUs().submit_form(data, links)
-        if request_response.get("status") == 200:
-            return Response({"data": "Request sent successfully"}, status=request_response.get("status"))
+        
+        url = "https://uxlivinglab100106.pythonanywhere.com/api/contact-us-extractor/"
+        payload = {
+            "page_links": links,
+            "data": data,
+        }
+        response = requests.post(url,json=payload)
+        print(response.json())
+
+        if response.status_code == 200:
+            return Response({"success":True,"data": "Request sent successfully"})
         else:
-            return Response({"data": "Request failed"}, status=request_response.get("status"))
+            return Response({"success":False,"data": "Request failed"})
         
         
         
