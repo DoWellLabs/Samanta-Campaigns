@@ -997,7 +997,6 @@ class CampaignLaunchAPIView(SamanthaCampaignsAPIView):
             status=status.HTTP_200_OK
         )
     
-
 class GetScrapingLink(SamanthaCampaignsAPIView):
     """Payload for fetching link data"""
     """
@@ -1006,16 +1005,25 @@ class GetScrapingLink(SamanthaCampaignsAPIView):
         }
     """
     def post(self, request, *args, **kwargs):
-        
+        # Get the 'links' data from the request
         links = request.data.get("links", [])
         
+        # Check if 'links' data is empty
+        if not links:
+            # Return an error response if 'links' data is not present
+            return Response({"error": "No links provided"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Call the link extractor method with the provided links
         request_response = ContactUs().link_extractor(links)
     
+        # Check the response status
         if request_response.get("status") == 200:
+            # If successful, return the data with the same status
             return Response({"data": request_response.get("data")}, status=request_response.get("status"))
         else:
-            return Response({"data": "Request failed"}, status=request_response.get("status"))
-        
+            # If failed, return an error response with the received status
+            return Response({"error": "Request failed"}, status=request_response.get("status"))
+    
         
 
 class SumitContactUsForm(SamanthaCampaignsAPIView):
@@ -1040,10 +1048,14 @@ class SumitContactUsForm(SamanthaCampaignsAPIView):
     """
     def post(self, request, *args, **kwargs):
         
-        data = request.data.get("data", [])
+        data = request.data.get("form_data", [])
         
-        links  = request.data.get("links", [])
+        links  = request.data.get("page_links", [])
         
+        # Check if 'data' or 'links' data is empty
+        if not data or not links:
+            # Return an error response if either 'data' or 'links' data is not present
+            return Response({"error": "Data or links not provided"}, status=status.HTTP_400_BAD_REQUEST)
         
         url = "https://uxlivinglab100106.pythonanywhere.com/api/contact-us-extractor/"
         payload = {

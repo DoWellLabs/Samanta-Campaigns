@@ -327,20 +327,10 @@ class SendEmail():
         return None
         
 class ContactUs:
-    def __init__(self):
-        self.url = "https://uxlivinglab100106.pythonanywhere.com"
-
     def link_extractor(self, links):
-        route = "/api/contact-us-extractor/"
-        
+        url = "https://uxlivinglab100106.pythonanywhere.com/api/contact-us-extractor/"
         payload = {"page_links": links}
-        print(links)
-        headers = {}
-
-        response = requests.request("POST", self.url+route, headers=headers, data=payload)
-
-        print(response.text)
-        
+        response = requests.post(url,json=payload)
         return {"data": response.json(), "status": response.status_code}
     
     def submit_form(self, data, links):
