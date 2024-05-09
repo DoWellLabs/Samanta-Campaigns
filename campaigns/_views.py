@@ -7,7 +7,7 @@ from api.views import SamanthaCampaignsAPIView
 from api.dowell.user import DowellUser
 from .dbobjects import Campaign, CampaignMessage
 from .utils import construct_dowell_email_template
-from .serializers import CampaignSerializer, CampaignMessageSerializer
+from .serializers import CampaignSerializer, CampaignMessageSerializer, ContactUsSerializer
 from api.utils import _send_mail
 
 from api.database import SamanthaCampaignsDB
@@ -18,6 +18,8 @@ import requests
 import time
 import os
 from .utils import fetch_email
+from rest_framework.exceptions import APIException
+from .helpers import Scrape_contact_us
 
 
 class UserRegistrationView(SamanthaCampaignsAPIView):
@@ -173,7 +175,7 @@ class TestEmail(SamanthaCampaignsAPIView):
             campaign_id = request.data.get("campaign_id")
             recipient_address = request.data.get("recipient_address")
             sender_address = request.data.get("sender_address")
-            sender_name = "SAMANTHA CAMPAIGN"
+            sender_name = sender_address
             recipient_name = request.data.get("recipient_name")
 
             message = CampaignMessage.manager.get(
@@ -1071,7 +1073,64 @@ class SumitContactUsForm(SamanthaCampaignsAPIView):
             return Response({"success":False,"data": "Request failed"})
         
         
+class ContactUsView(SamanthaCampaignsAPIView):
+    def get(self, request):
+        try:
+            workspace_id = request.query_params.get("workspace_id", None)
+            if not workspace_id:
+                raise APIException("Workspace ID is required.")
+            
+            collection_name = f"{workspace_id}_samantha_campaign"
+            dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
+            filters = {"page_links": {"$exists": True}}
+            result = dowell_datacube.fetch(collection_name, filters=filters)
+            
+            return Response(
+                {
+                    "success":True,
+                    "contact_us":result
+                }
+            )
         
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+    def post(self, request):
+        try:
+            workspace_id = request.query_params.get("workspace_id", None)
+            if not workspace_id:
+                raise APIException("Workspace ID is required.")
+            
+            links = request.data.get("links")
+            if not links:
+                raise APIException("Links data is required.")
+            
+            collection_name = f"{workspace_id}_samantha_campaign"
+            dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
+            
+            # Validate the links data
+            serializer = ContactUsSerializer(data={"page_links": links})
+            serializer.is_valid(raise_exception=True)
+            
+            # Insert data into the database
+            data = serializer.validated_data
+            result = dowell_datacube.insert(_into=collection_name, data=data)
+            
+            return Response(result)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+        
+class CrawlLinks(SamanthaCampaignsAPIView):
+    def post(self,request):
+        workspace_id = request.query_params.get("workspace_id")
+        print(workspace_id)
+        scrape = Scrape_contact_us.scrape(
+            workspace_id=workspace_id
+        )
+        print(scrape)
+        return Response(scrape)
+
 
 
 campaign_list_create_api_view = CampaignListCreateAPIView.as_view()
@@ -1085,3 +1144,5 @@ campaign_message_update_delete_api_view = CampaignMessageUpdateDeleteAPIView.as_
 campaign_launch_api_view = CampaignLaunchAPIView.as_view()
 user_registration_view = UserRegistrationView.as_view()
 test_email_view = TestEmail.as_view()
+contact_us = ContactUsView.as_view()
+scrape_contact_us = CrawlLinks.as_view()
