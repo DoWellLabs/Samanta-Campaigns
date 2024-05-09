@@ -345,3 +345,27 @@ class ContactUs:
         print(response.text)
         
         return {"status": response.status_code}
+
+
+class Scrape_contact_us:
+    @staticmethod
+    def scrape(workspace_id):
+        collection_name = f"{workspace_id}_samantha_campaign"
+        print(collection_name)
+        dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
+        filters = {"page_links": {"$exists": True}}
+        results = dowell_datacube.fetch(collection_name, filters=filters)
+        print(results)
+        links = []
+        for result in results:
+            links.extend(result.get("page_links", []))
+        url = "https://uxlivinglab100106.pythonanywhere.com/api/contact-us-extractor/"
+        payload = {
+            "page_links":links
+        }
+        res = requests.post(url,json=payload)
+        data={
+            "response":res
+        }
+        return data
+

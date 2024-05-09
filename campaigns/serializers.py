@@ -144,3 +144,7 @@ class CampaignMessageSerializer(serializers.Serializer):
         print("serialiezer workspce_id",workspace_id)
         campaign_message.save(dowell_api_key=dowell_api_key,workspace_id=workspace_id)
         return campaign_message
+    
+
+class ContactUsSerializer(serializers.Serializer):
+    page_links = serializers.ListField(child=serializers.URLField())
