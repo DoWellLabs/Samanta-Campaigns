@@ -2,7 +2,7 @@ from django.urls import path, include
 
 from . import webhooks, _views
 
-app_name = "campaignsv2"
+app_name = "campaignsV2"
 
 urlpatterns = [
     #VERSION 2 URLS
