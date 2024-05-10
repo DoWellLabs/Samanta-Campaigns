@@ -1128,7 +1128,6 @@ class CrawlLinks(SamanthaCampaignsAPIView):
         scrape = Scrape_contact_us.scrape(
             workspace_id=workspace_id
         )
-        print(scrape)
         return Response(scrape)
 
 
