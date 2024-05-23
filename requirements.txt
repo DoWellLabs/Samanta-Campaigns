@@ -12,3 +12,4 @@ apscheduler
 inflection
 python-dateutil
 cachetools
+aiohttp

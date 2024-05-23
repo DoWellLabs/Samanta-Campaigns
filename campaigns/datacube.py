@@ -1,14 +1,13 @@
 from typing import Any, Dict,Optional
 import requests
 
-from .exceptions import (
+from api.dowell.exceptions import (
     AlreadyExistsError, CollectionNotFoundError, DatacubeError, 
     ConnectionError, DatabaseNotFoundError
 )
 
 
-
-class DowellDatacube:
+class DowellDatacubeV2:
     """Dowell Datacube database client"""
     # Endpoints to connect to for the available database operations
     connection_urls = {
@@ -126,7 +125,7 @@ class DowellDatacube:
 
         response = requests.post(url=self.connection_urls[operation], json=payload)
         # self._handle_response_errors(response)
-        return response.json()["data"]
+        return response.json()
     
 
     def insert(self, _into: str, *, data: Dict[str, Any], filter: Optional[Dict[str, Any]] = None):
@@ -152,7 +151,6 @@ class DowellDatacube:
             raise TypeError("filter must be a dictionary if provided")
 
         operation = self.insert.db_operation_name
-        print("inserting to",_into)
         payload = {
             **self.connection_info,
             "coll_name": _into,
@@ -163,7 +161,7 @@ class DowellDatacube:
             payload['filter'] = filter
 
         response = requests.post(url=self.connection_urls[operation], json=payload)
-        print("res on insert",response.json())
+        print(response)
         self._handle_response_errors(response)
         
         end_time = time.time()
@@ -237,7 +235,6 @@ class DowellDatacube:
         }
         response = requests.delete(url=self.connection_urls[operation], json=payload)
         self._handle_response_errors(response)
-        print("this is delete",response.json())
         return response.json()["data"]
     
 

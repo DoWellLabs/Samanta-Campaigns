@@ -24,6 +24,8 @@ services:
     command: python3 scrape_links_task.py
     volumes:
       - .:/usr/src/app
+    networks:
+      - webnet
     
   run-due-task:
     build:
@@ -33,6 +35,8 @@ services:
     command: python3 run_due_campaigns_task.py
     volumes:
       - .:/usr/src/app
+    networks:
+      - webnet
   
   deactivate-active-task:
     build:
@@ -42,6 +46,8 @@ services:
     command: python3 deactivate_expired_campaigns_task.py
     volumes:
       - .:/usr/src/app
+    networks:
+      - webnet
   
 
 networks:

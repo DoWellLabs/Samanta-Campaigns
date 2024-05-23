@@ -23,7 +23,7 @@ def request_task_run():
         print(workspace_id)
         response = session.post(
             url=f"https://www.uxlive.me/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
-            #url=f"http://localhost:8000/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
+            #url=f"http://localhost:8001/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
             json={
                 "event": "task_due",
                 "task_name": "run_due_campaigns",

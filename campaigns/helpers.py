@@ -24,6 +24,8 @@ from .objectlists import CampaignAudienceLeadsLinkList
 import requests
 from django.core.exceptions import ValidationError
 from api.dowell.exceptions import UserNotFound
+import concurrent.futures
+import requests
 
 
 # CAMPAIGN SIGNALS
@@ -350,7 +352,7 @@ class ContactUs:
 class Scrape_contact_us:
     @staticmethod
     def scrape(workspace_id):
-        collection_name = f"{workspace_id}_samantha_campaign"
+        collection_name = f"{workspace_id}_contact_us"
         print(collection_name)
         dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
         filters = {"page_links": {"$exists": True}}
@@ -369,3 +371,49 @@ class Scrape_contact_us:
         }
         return data
 
+def page_links(links):
+    """
+    Send POST requests for a list of links to a specified URL concurrently.
+
+    :param links: List of links to be sent in the POST requests.
+    :param url: The URL to send the POST requests to.
+    :param max_workers: The maximum number of worker threads for concurrent requests.
+    :return: List of responses from the POST requests.
+    """
+    print("this are the links",links)
+    # Function to send a single POST request
+    def send_post_request(link):
+        payload ={
+            "web_url": link,
+            "max_search_depth": 2,
+            "info_request": {
+                "links":True,
+                "pages_url": [
+                    "about",
+                    "contact",
+                    "services",
+                ]
+            },
+        }
+        url=settings.DOWELL_WEBSITE_CRAWLER_URL
+        try:
+            response = requests.post(url, json=payload)
+            print(response.json())
+            return response
+        except requests.RequestException as e:
+            return e
+
+    # Use concurrent.futures to send POST requests concurrently
+    responses = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        future_to_link = {executor.submit(send_post_request, link): link for link in links}
+        
+        for future in concurrent.futures.as_completed(future_to_link):
+            link = future_to_link[future]
+            try:
+                response = future.result()
+                responses.append((link, response))
+            except Exception as exc:
+                responses.append((link, exc))
+    
+    return responses

@@ -285,6 +285,7 @@ def _send_mail(
             "email_content": body
         },
     )
+    print(response.json())
     if response.status_code != 200:
         response.raise_for_status()
     if not response.json()["success"]:

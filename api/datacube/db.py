@@ -12,6 +12,7 @@ from .exceptions import (
     InsertionError, UpdateError, DeletionError
 )
 
+import concurrent.futures
 
 
 
@@ -81,15 +82,14 @@ class DatacubeDB(ObjectDatabase):
                 f"Failed to fetch objects from the database"
             ) from exc
         
-        preferred_dbname = __type.config.preferred_db
+        preferred_dbname = f"{workspace_id}_samanta_campaign_db"
         # print("preferred_dbname", preferred_dbname, self.name)
         datacube = DowellDatacube(db_name=preferred_dbname or self.name, dowell_api_key=dowell_api_key)
         collection =workspace_id.replace(" ", "")
-        collection_name = f"{collection}_samantha_campaign"
-        # print("collection_name", collection_name)
+        collection_name = f"{collection}_campaign_details"
+        print("collection_name", collection_name)
         try:
             _resp = datacube.fetch(_from=collection_name, limit=limit, offset=offset)
-            # print(_resp)
             if wanted =="message":
                value = "campaign_id"
             elif wanted =="reports":
@@ -97,6 +97,7 @@ class DatacubeDB(ObjectDatabase):
             else:
                 value = "creator_id"
             print(value)
+            print("testing vim")
             documents = [obj for obj in _resp if obj.get(value)]
         except ConnectionError as exc:
             raise FetchError(f"Failed to fetch objects from the database. {exc}")
@@ -117,17 +118,19 @@ class DatacubeDB(ObjectDatabase):
         
 
     def insert(
-            self, 
-            obj, 
-            *,
-            dowell_api_key: str,
-            collection_name: str,
-        ):
+        self, 
+        obj, 
+        *,
+        dowell_api_key: str,
+        collection_name: str,
+        max_workers: int = 20  # Increase the number of worker threads
+    ):
         """
         Insert an object's data into the Datacube database based on its type.
 
         :param obj: The object whose data is to be inserted.
         :param dowell_api_key: The API key to use to access the Dowell Datacube API.
+        :param max_workers: The maximum number of worker threads for concurrent insertions.
         :return: The object's data unique identifier in the database.
         """
         try:
@@ -137,14 +140,18 @@ class DatacubeDB(ObjectDatabase):
             raise InsertionError(
                 f"Failed to insert object into the database"
             ) from exc
-        preferred_dbname = obj.config.preferred_db
+
+        # Extract workspace_id from collection_name
+        workspace_id = collection_name.split('_samantha')[0]
+        print("this is workspace_id", workspace_id)
+        preferred_dbname = f"{workspace_id}_samanta_campaign_db"
         datacube = DowellDatacube(db_name=preferred_dbname or self.name, dowell_api_key=dowell_api_key)
-        # collection_name = collection_name
-        # print("this is the collection_name", collection_name)
         document = obj.to_dbvalue()
+        print("this is document", document)
+        final_collection = f"{workspace_id}_campaign_details"
 
         try:
-            result = datacube.insert(_into=collection_name, data=document)
+            result = datacube.insert(_into=final_collection, data=document)
         except ConnectionError as exc:
             raise InsertionError(f"Failed to insert object into the database. {exc}")
         except CollectionNotFoundError as exc:
@@ -155,22 +162,71 @@ class DatacubeDB(ObjectDatabase):
         document_id = result["inserted_id"]
         assert isinstance(document_id, str), f"Expected DowellDatacube.insert()['inserted_id'] to return a string, got {type(document_id)}"
         obj._pkey = document_id
+
+        # Extract audiences and leads_links only if creator_id exists in the document
+        if 'creator_id' in document:
+            audiences = document.get('audiences', [])
+            leads_links = document.get('leads_links', [])
+            creator_id = document['creator_id']
+            print("this is audiences", audiences)
+            print("this is leads_links", leads_links)
+
+            email_collection_name = f"{workspace_id}_emails"
+            link_collection_name = f"{workspace_id}_links"
+
+            # Add creator_id and campaign_id to each audience and link
+            for audience in audiences:
+                audience['creator_id'] = creator_id
+                audience['campaign_id'] = document_id
+
+            for leads_link in leads_links:
+                leads_link['creator_id'] = creator_id
+                leads_link['campaign_id'] = document_id
+
+            # Function to insert data
+            def insert_data(collection_name, data):
+                try:
+                    datacube.insert(_into=collection_name, data=data)
+                    print(f"Inserted data: {data}")
+                except ConnectionError as exc:
+                    raise InsertionError(f"Failed to insert data into the database. {exc}")
+                except CollectionNotFoundError as exc:
+                    raise InsertionError(f"Failed to insert data into the database. {exc}")
+                except DatacubeError as exc:
+                    raise DatabaseError(f"Failed to insert data into the database. {exc}")
+
+            # Use concurrent.futures to insert data concurrently
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = []
+                for audience in audiences:
+                    futures.append(executor.submit(insert_data, email_collection_name, audience))
+                for leads_link in leads_links:
+                    futures.append(executor.submit(insert_data, link_collection_name, leads_link))
+                
+                # Wait for all futures to complete
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as exc:
+                        raise InsertionError(f"Failed to insert data concurrently into the database. {exc}")
+
         return document_id
-        
+
 
     def update(
-            self,
-            obj,
-            *,
-            dowell_api_key: str,
-            collection_name: str,
-        ):
+        self,
+        obj,
+        *,
+        dowell_api_key: str,
+        collection_name: str,
+        max_workers: int = 20  # Increase the number of worker threads
+    ):
         """
         Update an object's data in the Datacube database.
 
         :param obj: The object whose data is to be updated.
         :param dowell_api_key: The API key to use to access the Dowell Datacube API.
-        :param kwargs: Additional keyword arguments to pass to the Dowell Datacube client.
+        :param max_workers: The maximum number of worker threads for concurrent updates.
         :return: True if the object's data was updated successfully, False otherwise.
         """
         try:
@@ -183,20 +239,68 @@ class DatacubeDB(ObjectDatabase):
                 f"Failed to update object in the database"
             ) from exc
 
-        preferred_dbname = obj.config.preferred_db
+        # Extract workspace_id from collection_name
+        workspace_id = collection_name.split('_samantha')[0]
+        print("this is workspace_id", workspace_id)
+        preferred_dbname = f"{workspace_id}_samanta_campaign_db"
         datacube = DowellDatacube(db_name=preferred_dbname or self.name, dowell_api_key=dowell_api_key)
+
         new_document = obj.to_dbvalue()
+        final_collection = f"{workspace_id}_campaign_details"
+
         filter = {"_id": obj.pkey}
-    
 
         try:
-            datacube.update(_in=collection_name, filter=filter, data=new_document)
-            return True
+            datacube.update(_in=final_collection, filter=filter, data=new_document)
         except ConnectionError as exc:
+            raise UpdateError(f"Failed to update object in the database. {exc}")
+        except CollectionNotFoundError as exc:
             raise UpdateError(f"Failed to update object in the database. {exc}")
         except DatacubeError as exc:
             raise DatabaseError(f"Failed to update object in the database. {exc}")
-    
+
+        # Extract audiences and leads_links only if creator_id exists in the document
+        if 'creator_id' in new_document:
+            audiences = new_document.get('audiences', [])
+            leads_links = new_document.get('leads_links', [])
+            creator_id = new_document['creator_id']
+
+            email_collection_name = f"{workspace_id}_emails"
+            link_collection_name = f"{workspace_id}_links"
+
+            # Function to update data
+            def update_data(collection_name, data):
+                data_filter = {"id": data["id"]}
+                try:
+                    datacube.update(_in=collection_name, filter=data_filter, data=data)
+                except ConnectionError as exc:
+                    raise UpdateError(f"Failed to update data in the database. {exc}")
+                except CollectionNotFoundError as exc:
+                    raise UpdateError(f"Failed to update data in the database. {exc}")
+                except DatacubeError as exc:
+                    raise DatabaseError(f"Failed to update data in the database. {exc}")
+
+            # Use concurrent.futures to update data concurrently
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = []
+                for audience in audiences:
+                    audience['creator_id'] = creator_id
+                    audience['campaign_id'] = filter["_id"]
+                    futures.append(executor.submit(update_data, email_collection_name, audience))
+                
+                for leads_link in leads_links:
+                    leads_link['creator_id'] = creator_id
+                    leads_link['campaign_id'] = filter["_id"]
+                    futures.append(executor.submit(update_data, link_collection_name, leads_link))
+                
+                # Wait for all futures to complete
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as exc:
+                        raise UpdateError(f"Failed to update data concurrently in the database. {exc}")
+
+        return True
 
     def delete(
             self,
@@ -222,9 +326,9 @@ class DatacubeDB(ObjectDatabase):
                 f"Failed to delete object from the database"
             ) from exc
 
-        preferred_dbname = obj.config.preferred_db
+        preferred_dbname = f"{workspace_id}_samanta_campaign_db"
         datacube = DowellDatacube(db_name=preferred_dbname or self.name, dowell_api_key=dowell_api_key)
-        collection_name = f"{workspace_id}_samantha_campaign"
+        collection_name = f"{workspace_id}_campaign_details"
 
         try:
             datacube.delete(_from=collection_name, filter={"_id": obj.pkey})

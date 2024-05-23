@@ -14,6 +14,7 @@ urlpatterns = [
     path("test/test-email/", _views.test_email_view, name="test-email"),
     path("contact/contact_us/",_views.contact_us,name="contact_us"),
     path("scrape/contact_us/",_views.scrape_contact_us,name="scrape_contact_us"),
+    path("upload/upload_data/",_views.data_upload,name="data_upload"),
     path("<str:campaign_id>/activate-deactivate/", _views.campaign_activate_deactivate_api_view, name="campaign-activate-deactivate"),
     path("<str:campaign_id>/message/", _views.campaign_message_create_retrieve_api_view, name="campaign-message-create-retreive"),
     path("<str:campaign_id>/message/<str:message_id>/", _views.campaign_message_update_delete_api_view, name="campaign-message-update-delete"),

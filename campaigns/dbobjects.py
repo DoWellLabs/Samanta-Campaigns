@@ -36,6 +36,7 @@ from .utils import (
     generate_random_string,
     check_campaign_creator_has_sufficient_credits_to_run_campaign_once
 )
+from .crawl import crawl
 
 
 # CAMPAIGN SIGNALS
@@ -784,7 +785,8 @@ class CampaignAudienceLeadsLink(DatacubeObject):
             auto_deduct=not getattr(settings, "DISABLE_DOWELL_AUTO_DEDUCT_CREDITS", False)
         ):  
             sys.stdout.write(self.url)
-            result = await crawl_url_for_emails_and_phonenumbers(url=self.url, crawl_depth=crawl_depth)
+            result = await crawl([self.url])
+            print(result)
             self.is_crawled = True
             return result
 

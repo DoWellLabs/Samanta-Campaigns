@@ -175,7 +175,7 @@ def generate_random_string(length: int = 10):
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
-
+from .crawl import crawl
 # Cache the result of this function for 24 hours since
 # it takes a long time to run and there may be duplications
 @async_ttl_cache(maxsize=128, ttl_seconds=60*60*24) # cache for 24 hours
@@ -183,6 +183,9 @@ async def crawl_url_for_emails_and_phonenumbers(
       url: str,
       crawl_depth: int = 0,
     ):
+    print("the crawler was called")
+    res = crawl([url])
+    print(res)
     """
     Crawl a url for emails and phone numbers 
     using the Dowell Website Crawler API
@@ -202,6 +205,7 @@ async def crawl_url_for_emails_and_phonenumbers(
             },
         }
     )
+    print(response.json())
     if response.status_code != 200:
         # if response is not 200, return a dictionary with empty phone_numbers and emails
         return {

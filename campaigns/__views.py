@@ -26,7 +26,7 @@ from .helpers import Scrape_contact_us
 
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
-from .crawl import crawl
+
 
 
 class UserRegistrationView(SamanthaCampaignsAPIView):
@@ -73,60 +73,81 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
         """
         print("called")
         workspace_id = request.query_params.get("workspace_id", None)
-        if not workspace_id:
-            return Response({"message": "workspace_id is required"}, status=400)
-
         database_name = f"{workspace_id}_samanta_campaign_db"
+
         collections = {
             "campaign_details": f"{workspace_id}_campaign_details",
-            "contact_us": f"{workspace_id}_contact_us",
             "user_info": f"{workspace_id}_user_info",
             "emails": f"{workspace_id}_emails",
-            "links": f"{workspace_id}_links",
-            "test":f"{workspace_id}_test_collection"
+            "links": f"{workspace_id}_links"
         }
+        
+        user = DowellUser(workspace_id=workspace_id)
+        print(user.id)
+        self.append_workspace_id(workspace_id)  # Append workspace ID
 
-        try:
-            dowell_datacube = DowellDatacubeV2(db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY)
-        except Exception as e:
-            return Response({"message": str(e)}, status=500)
+        dowell_datacube = DowellDatacubeV2(db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY)    
+        missing_collections = []
 
-        for collection_name, collection in collections.items():
+        def check_and_create_collection(collection):
             response = dowell_datacube.fetch(_from=collection)
-            message = response.get("message")
-            print(message)
+            print(response)
+            if not response or not response.get('success', False):
+                if 'database' in response.get('message', '').lower():
+                    return 'database_not_exist'
+                if 'collection' in response.get('message', '').lower():
+                    dowell_datacube.create_collection(name=collection)
+                    return collection
+            return None
 
-            if message == "database does not exist in datacube":
-                return Response({"message": "database does not exist, please create"}, status=404)
-            elif f"Collection '{collection}' does not exist in Datacube database" in message:
-                dowell_datacube.create_collection(name=collection)
-                print("the inserted collection",collection)
-                # If 'user_info' collection is created, insert user data into it
-                if collection == collections["user_info"]:
-                    print("creating user info")
-                    user = DowellUser(workspace_id=workspace_id)
-                    user_info_data = {
-                        "id": user.id,
-                        "username": user.username,
-                        "email": user.email,
-                        "api_key": user.api_key,
-                        "firstname": user.firstname,
-                        "lastname": user.lastname,
-                        "phonenumber": user.phonenumber,
-                        "image_url": user.image_url,
-                        "active_status": user.active_status,
-                        "has_paid_account": user.has_paid_account,
-                        "credits": user.credits,
-                        "api_key_active_status": user.api_key_active_status
-                    }
-                    res = dowell_datacube.insert(_into=collection, data=user_info_data)
-            elif message in ["Data found!", "No data exists for this query/collection"]:
-                continue
-            else:
-                return Response({"message": f"Unexpected response: {message}"}, status=500)
+        with ThreadPoolExecutor(max_workers=len(collections)) as executor:
+            futures = [executor.submit(check_and_create_collection, collection) for collection in collections.values()]
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result == 'database_not_exist':
+                    return Response(
+                        {
+                            "success": False,
+                            "message": f"Database '{database_name}' does not exist in Datacube."
+                        }, status=404
+                    )
+                if result:
+                    missing_collections.append(result)
 
-        return Response({"message": "All collections checked/created successfully"}, status=200)
+        if "user_info" in missing_collections:
+            # Prepare user info data
+            user_info_data = {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "api_key": user.api_key,
+                "firstname": user.firstname,
+                "lastname": user.lastname,
+                "phonenumber": user.phonenumber,
+                "image_url": user.image_url,
+                "active_status": user.active_status,
+                "has_paid_account": user.has_paid_account,
+                "credits": user.credits,
+                "api_key_active_status": user.api_key_active_status
+            }
+            res=dowell_datacube.insert(_into=collections["user_info"], data=user_info_data)
+            print(res)
+    
 
+        if missing_collections:
+            return Response(
+                {
+                    "success": False,
+                    "message": f"The following collections did not exist in the Database and have been created: {', '.join(missing_collections)}."
+                }, status=200
+            )
+
+        return Response(
+            {
+                "success": True,
+                "message": "All collections exist."
+            }, status=200
+        )
 
         
     
@@ -383,8 +404,10 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         user = DowellUser(workspace_id=workspace_id)
         data = request.data
+        print(data)
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
+        
         user = DowellUser(workspace_id=workspace_id)
         data['default_message'] = True
         serializer = CampaignSerializer(
@@ -1043,7 +1066,7 @@ class ContactUsView(SamanthaCampaignsAPIView):
             if not workspace_id:
                 raise APIException("Workspace ID is required.")
             
-            collection_name = f"{workspace_id}_contact_us"
+            collection_name = f"{workspace_id}_samantha_campaign"
             dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
             filters = {"page_links": {"$exists": True}}
             result = dowell_datacube.fetch(collection_name, filters=filters)
@@ -1068,7 +1091,7 @@ class ContactUsView(SamanthaCampaignsAPIView):
             if not links:
                 raise APIException("Links data is required.")
             
-            collection_name = f"{workspace_id}_contact_us"
+            collection_name = f"{workspace_id}_samantha_campaign"
             dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
             
             # Validate the links data

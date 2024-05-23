@@ -82,6 +82,7 @@ class CampaignAudienceLeadsLinkList(ObjectList):
         creator of the campaign this leads link belongs to.
         :return: A list of dictionaries containing the crawled data
         """
+        print("this is self.uncrawled",self.uncrawled())
         async def acrawl():
             limiter = aiolimiter.AsyncLimiter(20)
             async with limiter:
