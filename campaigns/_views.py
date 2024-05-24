@@ -77,19 +77,23 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
             return Response({"message": "workspace_id is required"}, status=400)
 
         database_name = f"{workspace_id}_samanta_campaign_db"
+        res = self.append_workspace_id(workspace_id)
+        add_workspace_id = self.append_workspace_id(workspace_id)
         collections = {
             "campaign_details": f"{workspace_id}_campaign_details",
             "contact_us": f"{workspace_id}_contact_us",
             "user_info": f"{workspace_id}_user_info",
             "emails": f"{workspace_id}_emails",
-            "links": f"{workspace_id}_links",
-            "test":f"{workspace_id}_test_collection"
+            "links": f"{workspace_id}_links"
         }
 
         try:
             dowell_datacube = DowellDatacubeV2(db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY)
         except Exception as e:
-            return Response({"message": str(e)}, status=500)
+            return Response({
+                "success":False,
+                "message": str(e)
+            }, status=500)
 
         for collection_name, collection in collections.items():
             response = dowell_datacube.fetch(_from=collection)
@@ -123,9 +127,15 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
             elif message in ["Data found!", "No data exists for this query/collection"]:
                 continue
             else:
-                return Response({"message": f"Unexpected response: {message}"}, status=500)
+                return Response({
+                    "Success":False,
+                    "message": f"Unexpected response: {message}"
+                    }, status=500)
 
-        return Response({"message": "All collections checked/created successfully"}, status=200)
+        return Response({
+                "Sucess":True,
+                "message": "User Database exists"
+                }, status=200)
 
 
         
