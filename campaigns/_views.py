@@ -492,6 +492,7 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
             unverified_data = {
                 "creator_id": workspace_id,
                 "campaign_id": campaign.pkey,
+                "unverified":True,
                 "unverified_emails": unverified_emails
             }
             dowell_datacube = DowellDatacubeV2(db_name=f"{workspace_id}_samanta_campaign_db", dowell_api_key=settings.PROJECT_API_KEY)
