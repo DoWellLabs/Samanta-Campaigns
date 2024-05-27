@@ -805,6 +805,7 @@ async def async_send_sms(
         recipient_name: str = None,
         client: httpx.AsyncClient = None,
     ):
+    print("called to send sms")
     """
     Sends SMS using Dowell SMS API.
 

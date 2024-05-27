@@ -601,16 +601,19 @@ class Campaign(DatacubeObject):
         return None
     
 
-    def add_audience(self, contact: str):
+    def add_audience(self, contact: str, url: str = None):
         """
         Add audience to campaign
-        
+
         :param contact: email or phone number of audience to add
+        :param id: optional ID for the audience
         """
+        print("this is id passed inside the add_audience",url)
         if self.broadcast_type.lower() == "sms":
-            audience = CampaignAudience(phonenumber=contact)
+            audience = CampaignAudience(phonenumber=contact,url=url)
         else:
-            audience = CampaignAudience(email=contact)
+            print("from link")
+            audience = CampaignAudience(email=contact,url=url)
 
         self.audiences.append(audience)
         return None
@@ -641,15 +644,19 @@ class Campaign(DatacubeObject):
         for result in results:
             if self.broadcast_type.lower() == "sms":
                 phonenumbers = result.get("phone_numbers", [])
+                url = result.get("url")
+                print("this is id before adding the audience",url)
                 for phonenumber in phonenumbers:
-                    self.add_audience(contact=phonenumber)
+                    self.add_audience(contact=phonenumber,url=url)
 
             elif self.broadcast_type.lower() == "email":
                 emails = result.get("emails", [])
+                url = result.get("url")
+                print("this is id before adding the audience",url)
                 for email in emails:
-                    self.add_audience(contact=email)
+                    print("this is email to be added",email)
+                    self.add_audience(contact=email,url=url)
         return None
-
 
 
 @as_manager(CampaignAudienceList)
@@ -671,6 +678,7 @@ class CampaignAudience(DatacubeObject):
         "email": (str,),
         "is_subscribed": (bool,),
         "added_at": (datetime.datetime,),
+        "url": (str,),  # New attribute for storing the provided url
     }
     config.defaults = {
         "id": generate_random_string,
@@ -682,12 +690,20 @@ class CampaignAudience(DatacubeObject):
         "email": [validate_not_blank, is_email],
     }
     config.ordering = ("-added_at",)
-    
+
+    def __init__(self, *args, **kwargs):
+        provided_url = kwargs.pop('url', None)
+        print("this is the provide link when init is called ",provided_url)
+        super().__init__(*args, **kwargs)
+        if provided_url is not None:
+            self.url = provided_url
+            print(self.url)
+            self.save
+
     def serialize(self):
         serialized = super().serialize()
         serialized.pop("pkey", None)
         return serialized
-    
 
     def subscribe(self):
         """Subscribe audience to campaign"""
@@ -696,14 +712,12 @@ class CampaignAudience(DatacubeObject):
         self.is_subscribed = True
         return None
 
-    
     def unsubscribe(self):
         """Unsubscribe audience from campaign"""
         if not self.is_subscribed:
             raise DjangoValidationError("Audience is already unsubscribed")
         self.is_subscribed = False
         return None
-
 
     def save(self, dowell_api_key: str = None, using = None):
         raise Exception("CampaignAudience objects cannot be saved")
@@ -729,11 +743,13 @@ class CampaignAudienceLeadsLink(DatacubeObject):
         "url": (str,),
         "is_crawled": (bool,),
         "added_at": (datetime.datetime,),
+        "links": (list,)  # Adding the new attribute here
     }
     config.defaults = {
         "id": generate_random_string,
         "added_at": timezone.now,
         "is_crawled": False,
+        "links": []  # Setting the default value for the new attribute
     }
     config.validators = {
         "url": [validate_not_blank, validate_url],
@@ -786,8 +802,17 @@ class CampaignAudienceLeadsLink(DatacubeObject):
         ):  
             sys.stdout.write(self.url)
             result = await crawl([self.url])
+            print("this is the results inside await crawl", result)
             print(result)
+            # Add self.url to the result dictionary
+            if isinstance(result, list):
+                for item in result:
+                    item['url'] = self.url
+            elif isinstance(result, dict):
+                result['url'] = self.url
+            print("result after adding the id to results",result)
             self.is_crawled = True
+            self.links = result.get("links")
             return result
 
 

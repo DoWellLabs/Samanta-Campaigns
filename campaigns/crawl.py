@@ -102,6 +102,7 @@ async def crawl(urls_list):
     data = {
         "emails": emails,
         "phone_numbers": phones,
+        "links":social_media_links
     }
     print("Data after crawling:", data)
     return data

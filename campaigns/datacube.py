@@ -205,9 +205,12 @@ class DowellDatacubeV2:
             "query": filter,
             "update_data": data,
         }
+        print("this is the filter ",filter)
+        print("And this is Data", data)
+        print("and this is In", _in)
         response = requests.put(url=self.connection_urls[operation], json=payload)
         self._handle_response_errors(response)
-        return response.json()["data"]
+        return response.json()
     
 
     def delete(self, _from: str, *, filter: Dict[str, Any] = {}):

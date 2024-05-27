@@ -49,7 +49,7 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
         Retrieve workspace IDs from the text file.
 
         :return: A list of workspace IDs.
-        """
+         """
         if os.path.exists("workspace_ids.txt"):
             with open("workspace_ids.txt", "r") as file:
                 workspace_ids = file.read().splitlines()
@@ -61,12 +61,12 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
             return []
 
     
-
     def get(self, request):
         """
         Get all collections and check if there's a collection created by the user.
 
         This method retrieves collections from the database and checks if collections created by the user exist.
+        If all collections exist, it updates the user_info collection with the user data if there are any differences.
 
         :param request: The HTTP request object.
         :return: A response containing collection data or a message indicating the status of the operation.
@@ -77,7 +77,6 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
             return Response({"message": "workspace_id is required"}, status=400)
 
         database_name = f"{workspace_id}_samanta_campaign_db"
-        res = self.append_workspace_id(workspace_id)
         add_workspace_id = self.append_workspace_id(workspace_id)
         collections = {
             "campaign_details": f"{workspace_id}_campaign_details",
@@ -90,27 +89,25 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
         try:
             dowell_datacube = DowellDatacubeV2(db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY)
         except Exception as e:
-            return Response({
-                "success":False,
-                "message": str(e)
-            }, status=500)
+            return Response({"success": False, "message": str(e)}, status=500)
+
+        all_collections_exist = True
 
         for collection_name, collection in collections.items():
             response = dowell_datacube.fetch(_from=collection)
             message = response.get("message")
-            print(message)
+            print(f"Checking collection {collection}: {message}")
 
             if message == "database does not exist in datacube":
                 return Response({"message": "database does not exist, please create"}, status=404)
             elif f"Collection '{collection}' does not exist in Datacube database" in message:
                 dowell_datacube.create_collection(name=collection)
-                print("the inserted collection",collection)
-                # If 'user_info' collection is created, insert user data into it
+                print("Inserted collection", collection)
                 if collection == collections["user_info"]:
-                    print("creating user info")
+                    print("Creating user info")
                     user = DowellUser(workspace_id=workspace_id)
                     user_info_data = {
-                        "id": user.id,
+                        "workspace_id": workspace_id,
                         "username": user.username,
                         "email": user.email,
                         "api_key": user.api_key,
@@ -123,20 +120,69 @@ class UserRegistrationView(SamanthaCampaignsAPIView):
                         "credits": user.credits,
                         "api_key_active_status": user.api_key_active_status
                     }
-                    res = dowell_datacube.insert(_into=collection, data=user_info_data)
+                    dowell_datacube.insert(_into=collection, data=user_info_data)
             elif message in ["Data found!", "No data exists for this query/collection"]:
                 continue
             else:
-                return Response({
-                    "Success":False,
-                    "message": f"Unexpected response: {message}"
-                    }, status=500)
+                return Response({"Success": False, "message": f"Unexpected response: {message}"}, status=500)
 
-        return Response({
-                "Sucess":True,
-                "message": "User Database exists"
-                }, status=200)
+        # Fetch the existing user data from user_info collection
+        dowell_user = DowellUser(workspace_id=workspace_id)
+        filters = {"email": dowell_user.email}
+        fetch_response = dowell_datacube.fetch(_from=collections["user_info"], filters=filters)
+        print(fetch_response)
 
+        if fetch_response["success"] and fetch_response["message"] == "Data found!":
+            existing_user_data = fetch_response["data"][0]
+
+            # Create a dictionary of the new user data
+            new_user_data = {
+                "workspace_id": workspace_id,
+                "username": dowell_user.username,
+                "email": dowell_user.email,
+                "api_key": dowell_user.api_key,
+                "firstname": dowell_user.firstname,
+                "lastname": dowell_user.lastname,
+                "phonenumber": dowell_user.phonenumber,
+                "image_url": dowell_user.image_url,
+                "active_status": dowell_user.active_status,
+                "has_paid_account": dowell_user.has_paid_account,
+                "credits": dowell_user.credits,
+                "api_key_active_status": dowell_user.api_key_active_status
+            }
+
+            # Determine the fields that need updating
+            update_data = {key: value for key, value in new_user_data.items() if existing_user_data.get(key) != value}
+            print(update_data)
+
+            if update_data:
+                res = dowell_datacube.update(_in=collections["user_info"], filter=filters, data=update_data)
+                print(res)
+            else:
+                print("No updates needed")
+
+        else:
+            # If no existing data is found, insert new user data
+            print("Inserting new user info")
+            user = DowellUser(workspace_id=workspace_id)
+            user_info_data = {
+                        "workspace_id": workspace_id,
+                        "username": user.username,
+                        "email": user.email,
+                        "api_key": user.api_key,
+                        "firstname": user.firstname,
+                        "lastname": user.lastname,
+                        "phonenumber": user.phonenumber,
+                        "image_url": user.image_url,
+                        "active_status": user.active_status,
+                        "has_paid_account": user.has_paid_account,
+                        "credits": user.credits,
+                        "api_key_active_status": user.api_key_active_status
+                    }
+            res = dowell_datacube.insert(_into=collections["user_info"], data=user_info_data)
+            print(res)
+
+        return Response({"Success": True, "message": "User Database exists"}, status=200)
 
         
     
@@ -393,6 +439,8 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         workspace_id = request.query_params.get("workspace_id", None)
         user = DowellUser(workspace_id=workspace_id)
         data = request.data
+        unverified_emails = data.get("unverified_emails")
+        print("this is unverified emails")
         if not isinstance(data, dict):
             raise exceptions.NotAcceptable("Request body must be a dictionary.")
         user = DowellUser(workspace_id=workspace_id)
@@ -439,7 +487,16 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         )
 
         can_launch, reason, percentage_ready = updated_campaign.is_launchable(dowell_api_key=settings.PROJECT_API_KEY)
-
+        # Insert unverified emails only if they are not None
+        if unverified_emails is not None:
+            unverified_data = {
+                "creator_id": workspace_id,
+                "campaign_id": campaign.pkey,
+                "unverified_emails": unverified_emails
+            }
+            dowell_datacube = DowellDatacubeV2(db_name=f"{workspace_id}_samanta_campaign_db", dowell_api_key=settings.PROJECT_API_KEY)
+            res_unverified = dowell_datacube.insert(_into=f"{workspace_id}_emails", data=unverified_data)
+            print("Unverified emails inserted:", res_unverified)
         # updated_campaign = Campaign.manager.get(
 
         # )
