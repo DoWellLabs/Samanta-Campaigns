@@ -332,6 +332,8 @@ class DatacubeDB(ObjectDatabase):
 
         try:
             datacube.delete(_from=collection_name, filter={"_id": obj.pkey})
+            datacube.delete(_from=f"{workspace_id}_links",filter={"campaign_id":obj.pkey})
+            datacube.delete(_from=f"{workspace_id}_emails",filter={"campaign_id":obj.pkey})
             return True
         except ConnectionError as exc:
             raise DeletionError(f"Failed to delete object from the database. {exc}")
