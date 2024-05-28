@@ -489,15 +489,26 @@ class CampaignListCreateAPIView(SamanthaCampaignsAPIView):
         can_launch, reason, percentage_ready = updated_campaign.is_launchable(dowell_api_key=settings.PROJECT_API_KEY)
         # Insert unverified emails only if they are not None
         if unverified_emails is not None:
-            unverified_data = {
+            dowell_datacube = DowellDatacubeV2(db_name=f"{workspace_id}_samanta_campaign_db", dowell_api_key=settings.PROJECT_API_KEY)
+    
+            def insert_email(email):
+                unverified_data = {
                 "creator_id": workspace_id,
                 "campaign_id": campaign.pkey,
-                "unverified":True,
-                "unverified_emails": unverified_emails
-            }
-            dowell_datacube = DowellDatacubeV2(db_name=f"{workspace_id}_samanta_campaign_db", dowell_api_key=settings.PROJECT_API_KEY)
-            res_unverified = dowell_datacube.insert(_into=f"{workspace_id}_emails", data=unverified_data)
-            print("Unverified emails inserted:", res_unverified)
+                "is_verified": False,
+                "email": email  # Assuming each email is a link or a dictionary containing the link
+                }
+                return dowell_datacube.insert(_into=f"{workspace_id}_emails", data=unverified_data)
+    
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                futures = {executor.submit(insert_email, email): email for email in unverified_emails}
+                for future in concurrent.futures.as_completed(futures):
+                    email = futures[future]
+                    try:
+                        res_unverified = future.result()
+                        print(f"Unverified email inserted: {res_unverified}")
+                    except Exception as e:
+                        print(f"Error inserting email {email}: {e}")
         # updated_campaign = Campaign.manager.get(
 
         # )

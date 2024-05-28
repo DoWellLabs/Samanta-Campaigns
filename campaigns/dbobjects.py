@@ -677,6 +677,7 @@ class CampaignAudience(DatacubeObject):
         "phonenumber": (str,),
         "email": (str,),
         "is_subscribed": (bool,),
+        "is_verified":(bool,),
         "added_at": (datetime.datetime,),
         "url": (str,),  # New attribute for storing the provided url
     }
@@ -684,6 +685,7 @@ class CampaignAudience(DatacubeObject):
         "id": generate_random_string,
         "added_at": timezone.now,
         "is_subscribed": True,
+        "is_verified":True,
     }
     config.validators = {
         "phonenumber": [validate_not_blank, is_phonenumber],
