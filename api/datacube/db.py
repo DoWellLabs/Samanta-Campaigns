@@ -88,10 +88,11 @@ class DatacubeDB(ObjectDatabase):
         collection =workspace_id.replace(" ", "")
         collection_name = f"{collection}_campaign_details"
         print("collection_name", collection_name)
+        print("this is wanted",wanted)
         try:
             _resp = datacube.fetch(_from=collection_name, limit=limit, offset=offset)
             if wanted =="message":
-               value = "campaign_id"
+               value = "sender"
             elif wanted =="reports":
                 value = "events"
             else:

@@ -249,8 +249,7 @@ class Campaign(DatacubeObject):
         service = campaign_creator.get_service(service_id)
         if not ans:
             return ans, f"DowellService '{service}' is not active."
-        
-        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(self)
+        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(self.broadcast_type,no_of_audiences=self.audiences.count(),campaign_creator=campaign_creator)
         if not ans:
             return ans, "You do not have sufficient credits to run this campaign. Please top up."
         return ans, "Campaign can be run"
@@ -306,6 +305,7 @@ class Campaign(DatacubeObject):
         start_time = time.time()
         
         workspace_id = self.creator_id
+        print("i was called")
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
         msg = CampaignMessage.manager.filter(campaign_id=self.pkey, dowell_api_key=dowell_api_key,workspace_id=workspace_id, wanted="message").first()
         end_time = time.time()
@@ -482,7 +482,6 @@ class Campaign(DatacubeObject):
                     body=construct_dowell_email_template(
                         subject="Campaign Update",
                         body=f"Your campaign, '{self.title}', cannot run.<br><br><b>Reason:</b> {reason}",
-                        recipient=self.creator.email
                     ),
                     sender_address=settings.PROJECT_EMAIL,
                     recipient_address=self.creator.email,
@@ -541,7 +540,7 @@ class Campaign(DatacubeObject):
             }
             run_report.add_event(event_type="ERROR", data=event_data)
             # Save the report used while running
-            run_report.save(dowell_api_key=settings.PROJECT_API_KEY)
+            run_report.save(dowell_api_key=settings.PROJECT_API_KEY,workspace_id=self.creator_id)
         except:
             raise
         finally:
@@ -565,6 +564,7 @@ class Campaign(DatacubeObject):
             log_errors: bool = True,
             dowell_api_key: str = None
         ):
+        print("-----------------------------------------------------------------Called to run-----------------------------")
         """
         Run campaign. Send messages to campaign audiences
         
@@ -585,8 +585,11 @@ class Campaign(DatacubeObject):
         e = None
         run_report = self._started_running()
         try:
+            print("--------------------------- part 2 of called to run------------------------------------")
             message = self.get_message(dowell_api_key=dowell_api_key)
+            print("we have message",message)
             subscribers = self.audiences.subscribed()
+            print("users are subscribed",subscribers)
             message.send(to=subscribers, report=run_report)
 
         except Exception as exc:
@@ -695,11 +698,9 @@ class CampaignAudience(DatacubeObject):
 
     def __init__(self, *args, **kwargs):
         provided_url = kwargs.pop('url', None)
-        print("this is the provide link when init is called ",provided_url)
         super().__init__(*args, **kwargs)
         if provided_url is not None:
             self.url = provided_url
-            print(self.url)
             self.save
 
     def serialize(self):
@@ -823,6 +824,7 @@ class CampaignMessage(DatacubeObject):
     config = DatacubeObject.new_config()
     config.attributes = {
         "campaign_id": (str,),
+        "workspace_id": (str,), # workspace ID of DowellUser
         "type": (str,),
         "subject": (str,),
         "body": (str,),
@@ -838,6 +840,7 @@ class CampaignMessage(DatacubeObject):
     }
     config.required = (
         "campaign_id",
+        "workspace_id",
         "type",
         "subject",
         "body",
@@ -852,6 +855,7 @@ class CampaignMessage(DatacubeObject):
         "subject": [validate_not_blank, min_max(min_length=3, max_length=255)],
         "body": [validate_not_blank, min_max(min_length=10, max_length=5000)],
         "sender": [validate_email_or_phone_number],
+        "workspace_id": [validate_not_blank], 
     }
     config.ordering = ("-created_at",)
     config.auto_now_datetimes = ("updated_at",)
@@ -865,7 +869,8 @@ class CampaignMessage(DatacubeObject):
 
         :param dowell_api_key: Dowell API key to use for retrieving campaign.
         """
-        workspace_id = self.creator_id
+        print("getting campaign")
+        workspace_id = self.workspace_id
         print("Check for campaign GET", workspace_id)
         return Campaign.manager.get(pkey=self.campaign_id, dowell_api_key=dowell_api_key,workspace_id=workspace_id)
     
@@ -894,7 +899,8 @@ class CampaignMessage(DatacubeObject):
             *,
             limit: int = 0,
             report: CampaignRunReport = None
-        ):    
+        ):  
+        print("called to send")  
         """
         Send message to campaign audience(s)
 
@@ -909,7 +915,7 @@ class CampaignMessage(DatacubeObject):
         recipients = list(to)
         if limit > 0:
             recipients = recipients[:limit]
-
+        print("i got here part 2")
         if report:
             report.add_event(
                 event_type="INFO", 
@@ -917,7 +923,7 @@ class CampaignMessage(DatacubeObject):
                     "detail": f"Started {self.type} broadcast to {len(recipients)} audiences."
                 }
             )
-
+        print("done reporting")
         asyncio.run(
             getattr(self, f"_send_as_{self.type.lower()}")(
                 to=recipients, 
@@ -927,6 +933,7 @@ class CampaignMessage(DatacubeObject):
 
         if report:
             failures = len(list(filter(lambda event: event["type"] == "ERROR", report.events)))
+            print("this are the failures")
             report.add_event(
                 event_type="INFO", 
                 data={
@@ -943,13 +950,15 @@ class CampaignMessage(DatacubeObject):
             report: CampaignRunReport,
         ):
         """Send message as email"""
+        print("------------Send message as email-----------")
         if not isinstance(to, list):
             raise ValueError("`to` should be of type list")
         
         limiter = aiolimiter.AsyncLimiter(20)
         async with limiter:
             async with httpx.AsyncClient() as client:
-                tasks = [ 
+                print("calling send to audience")
+                tasks = [
                     self._send_email_to_audience(
                         audience=audience, 
                         client=client,
@@ -994,9 +1003,12 @@ class CampaignMessage(DatacubeObject):
             report: CampaignRunReport = None
         ):
         """Send email to audience"""
+        print("the send mail to audience is called and this is audience ",audience.email)
         if audience.email:
             client = client or httpx.AsyncClient()
+            print("i got inside")
             campaign = self.get_campaign(dowell_api_key=settings.PROJECT_API_KEY)
+            print("campaign inside async def _send_email_to_audience",campaign)
             unsubscribe_url = urljoin(settings.API_BASE_URL, f"campaigns/{campaign.pkey}/audiences/unsubscribe/?audience_id={audience.id}")
 
             mail_kwargs = {
@@ -1018,15 +1030,13 @@ class CampaignMessage(DatacubeObject):
                     mail_kwargs["body"] = construct_dowell_email_template(
                         subject=self.subject,
                         body=self.body, 
-                        recipient=audience.email,
                         image_url=campaign.image,
                         unsubscribe_link=unsubscribe_url
                     )
             else:
                 mail_kwargs["body"] = construct_dowell_email_template(
                         subject=self.subject,
-                        body=self.body, 
-                        recipient=audience.email,
+                        body=self.body,
                         image_url=campaign.image,
                         unsubscribe_link=unsubscribe_url
                     )

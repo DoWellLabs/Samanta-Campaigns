@@ -106,6 +106,7 @@ class CampaignMessageSerializer(serializers.Serializer):
         
         validated_data["type"] = campaign.broadcast_type
         validated_data["campaign_id"] = campaign.pkey
+        validated_data["workspace_id"] = campaign.creator_id
         # print("validated data is", validated_data)
         sender = validated_data.get("sender", None)
         if campaign.broadcast_type.lower() == "email":
