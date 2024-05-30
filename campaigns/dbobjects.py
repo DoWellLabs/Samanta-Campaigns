@@ -19,45 +19,51 @@ from api.objects.signals import ObjectSignal
 from api.dowell.user import DowellUser
 from api.dowell.credits import DeductUserCreditsOnServiceUse
 from api.validators import (
-    validate_url, validate_not_blank, 
+    validate_url,
+    validate_not_blank,
     validate_email_or_phone_number,
-    is_email, is_phonenumber,
-    MinMaxLengthValidator
+    is_email,
+    is_phonenumber,
+    MinMaxLengthValidator,
 )
 from api.objects.utils import ttl_cache, get_logger
 from api.utils import async_send_mail, async_send_sms, _send_mail
 from api.objects.db import ObjectDatabase
-from .objectlists import CampaignList, CampaignAudienceList, CampaignAudienceLeadsLinkList
+from .objectlists import (
+    CampaignList,
+    CampaignAudienceList,
+    CampaignAudienceLeadsLinkList,
+)
 from reports.dbobjects import CampaignRunReport
 from .utils import (
-    construct_dowell_email_template, 
+    construct_dowell_email_template,
     crawl_url_for_emails_and_phonenumbers,
-    fetch_email, 
+    fetch_email,
     generate_random_string,
-    check_campaign_creator_has_sufficient_credits_to_run_campaign_once
+    check_campaign_creator_has_sufficient_credits_to_run_campaign_once,
 )
 from .crawl import crawl
 
 
 # CAMPAIGN SIGNALS
 # ----------------------------------------------------
-campaign_started_running = ObjectSignal("campaign_started_running", use_caching=True) 
+campaign_started_running = ObjectSignal("campaign_started_running", use_caching=True)
 # This signal is sent when a campaign starts running
 # kwargs: instance, started_at
 # ----------------------------------------------------
-campaign_stopped_running = ObjectSignal("campaign_stopped_running", use_caching=True) 
+campaign_stopped_running = ObjectSignal("campaign_stopped_running", use_caching=True)
 # This signal is sent when a campaign stops running, whether it ran successfully or not.
 # kwargs: instance, stopped_at, exception
 # ----------------------------------------------------
-campaign_launched = ObjectSignal("campaign_launched", use_caching=True) 
+campaign_launched = ObjectSignal("campaign_launched", use_caching=True)
 # This signal is sent when a campaign is launched
 # kwargs: instance, launched_at
 # ----------------------------------------------------
-campaign_activated = ObjectSignal("campaign_activated", use_caching=True) 
+campaign_activated = ObjectSignal("campaign_activated", use_caching=True)
 # This signal is sent when a campaign is activated
 # kwargs: instance
 # ----------------------------------------------------
-campaign_deactivated = ObjectSignal("campaign_deactivated", use_caching=True) 
+campaign_deactivated = ObjectSignal("campaign_deactivated", use_caching=True)
 # This signal is sent when a campaign is deactivated
 # kwargs: instance
 # ----------------------------------------------------
@@ -69,6 +75,7 @@ min_max = MinMaxLengthValidator
 @as_manager(CampaignList)
 class Campaign(DatacubeObject):
     """Campaign Object"""
+
     config = DatacubeObject.new_config()
     config.attributes = {
         "type": (str,),
@@ -76,7 +83,7 @@ class Campaign(DatacubeObject):
         "title": (str,),
         "purpose": (str,),
         "image": (str,),
-        "creator_id": (str,), # workspace ID of DowellUser
+        "creator_id": (str,),  # workspace ID of DowellUser
         "keyword": (str,),
         "target_city": (str,),
         "range": (int, float),
@@ -96,7 +103,14 @@ class Campaign(DatacubeObject):
     }
     config.choices = {
         "broadcast_type": ("EMAIL", "SMS"),
-        "frequency": ("DAILY", "WEEKLY", "FORTNIGHTLY", "MONTHLY", "QUARTERLY", "HOURLY"),
+        "frequency": (
+            "DAILY",
+            "WEEKLY",
+            "FORTNIGHTLY",
+            "MONTHLY",
+            "QUARTERLY",
+            "HOURLY",
+        ),
     }
     config.required = (
         "title",
@@ -119,7 +133,9 @@ class Campaign(DatacubeObject):
         "image": [validate_url],
         "keyword": [validate_not_blank, min_max(min_length=3, max_length=100)],
         "purpose": [validate_not_blank, min_max(min_length=5, max_length=2000)],
-        "creator_id": [validate_not_blank], # is_valid_workspace_id - will slow down object creation, retrieval and update
+        "creator_id": [
+            validate_not_blank
+        ],  # is_valid_workspace_id - will slow down object creation, retrieval and update
     }
     config.ordering = ("-created_at",)
     config.auto_now_datetimes = ("updated_at",)
@@ -127,9 +143,13 @@ class Campaign(DatacubeObject):
     def __init__(self, **attrs):
         super().__init__(**attrs)
         if not self.audiences:
-            self.audiences = CampaignAudienceList(object_class="campaigns.dbobjects.CampaignAudience")
+            self.audiences = CampaignAudienceList(
+                object_class="campaigns.dbobjects.CampaignAudience"
+            )
         if not self.leads_links:
-            self.leads_links = CampaignAudienceLeadsLinkList(object_class="campaigns.dbobjects.CampaignAudienceLeadsLink")
+            self.leads_links = CampaignAudienceLeadsLinkList(
+                object_class="campaigns.dbobjects.CampaignAudienceLeadsLink"
+            )
         return None
 
     # Cache the campaign creator object. Since the creator_id will most likely not change, we can cache the first result
@@ -138,12 +158,12 @@ class Campaign(DatacubeObject):
     def creator(self):
         """DowellUser object that created this campaign"""
         return DowellUser(workspace_id=self.creator_id)
-    
+
     @property
     def no_of_audiences(self) -> int:
         """Returns number of audiences for this campaign"""
         return len(self.audiences)
-    
+
     @property
     def has_audiences(self) -> bool:
         """Returns True if campaign has audiences"""
@@ -158,7 +178,7 @@ class Campaign(DatacubeObject):
     def timedelta(self):
         """Returns the timedelta object for the campaign frequency"""
         return self.get_timedelta_from_type(self.frequency)
-    
+
     @property
     def next_due_date(self):
         """Returns the next date when an active campaign is due"""
@@ -171,8 +191,10 @@ class Campaign(DatacubeObject):
     def get_timedelta_from_type(cls, frequency: str):
         """Returns the timedelta object for the campaign"""
         if frequency not in cls.config.choices["frequency"]:
-            raise ValueError(f"Campaign frequency must be one of {cls.choices['frequency']}")
-    
+            raise ValueError(
+                f"Campaign frequency must be one of {cls.choices['frequency']}"
+            )
+
         if frequency == "DAILY":
             return datetime.timedelta(days=1)
         elif frequency == "WEEKLY":
@@ -184,45 +206,61 @@ class Campaign(DatacubeObject):
         elif frequency == "QUARTERLY":
             return datetime.timedelta(weeks=12)
         return None
-    
 
     def is_launchable(self, dowell_api_key: str = None):
         """
         Returns True if campaign can be launched, gives reason why or why not
         and percentage of readiness to launch
 
-        :param dowell_api_key: Optional Dowell API key to use for check, 
+        :param dowell_api_key: Optional Dowell API key to use for check,
         if not provided, the campaign creator's API key is used.
         """
         ans = not self.has_launched
         if not ans:
             return ans, "Campaign has already been launched", 100
-        
+
         percentage_ready = 0.000
         ans = self.get_message(dowell_api_key=dowell_api_key) is not None
         if not ans:
             return ans, "Campaign has no message", math.ceil(percentage_ready)
         percentage_ready += 25.000
-        
-        service_id = settings.DOWELL_MAIL_SERVICE_ID if self.broadcast_type == "EMAIL" else settings.DOWELL_SMS_SERVICE_ID
+
+        service_id = (
+            settings.DOWELL_MAIL_SERVICE_ID
+            if self.broadcast_type == "EMAIL"
+            else settings.DOWELL_SMS_SERVICE_ID
+        )
         campaign_creator = self.creator
         ans = campaign_creator.check_service_active(service_id)
         service = campaign_creator.get_service(service_id)
         if not ans:
-            return ans, f"DowellService '{service}' is not active.", math.ceil(percentage_ready)
-        percentage_ready += 25.000
-        
-        if not self.leads_links.uncrawled().empty:
-            return False, "Some leads links have not been crawled", math.ceil(percentage_ready)
+            return (
+                ans,
+                f"DowellService '{service}' is not active.",
+                math.ceil(percentage_ready),
+            )
         percentage_ready += 25.000
 
-        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(self.broadcast_type,self.no_of_audiences,campaign_creator)
+        if not self.leads_links.uncrawled().empty:
+            return (
+                False,
+                "Some leads links have not been crawled",
+                math.ceil(percentage_ready),
+            )
+        percentage_ready += 25.000
+
+        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(
+            self.broadcast_type, self.no_of_audiences, campaign_creator
+        )
         if not ans:
-            return ans, "You do not have sufficient credits to run this campaign. Please top up.", math.ceil(percentage_ready)
+            return (
+                ans,
+                "You do not have sufficient credits to run this campaign. Please top up.",
+                math.ceil(percentage_ready),
+            )
         percentage_ready += 25.000
 
         return ans, "Campaign can be launched", math.ceil(percentage_ready)
-    
 
     def is_runnable(self, dowell_api_key: str = None):
         """
@@ -234,7 +272,7 @@ class Campaign(DatacubeObject):
         ans = not self.is_running
         if not ans:
             return ans, "Campaign is already running"
-        
+
         ans = self.is_active
         if not ans:
             return ans, "Campaign is not active"
@@ -242,36 +280,46 @@ class Campaign(DatacubeObject):
         ans = self.has_launched
         if not ans:
             return ans, "Campaign has not been launched"
-        
-        service_id = settings.DOWELL_MAIL_SERVICE_ID if self.broadcast_type == "EMAIL" else settings.DOWELL_SMS_SERVICE_ID
-        campaign_creator = self.creator 
+
+        service_id = (
+            settings.DOWELL_MAIL_SERVICE_ID
+            if self.broadcast_type == "EMAIL"
+            else settings.DOWELL_SMS_SERVICE_ID
+        )
+        campaign_creator = self.creator
         ans = campaign_creator.check_service_active(service_id)
         service = campaign_creator.get_service(service_id)
         if not ans:
             return ans, f"DowellService '{service}' is not active."
-        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(self.broadcast_type,no_of_audiences=self.audiences.count(),campaign_creator=campaign_creator)
+        ans = check_campaign_creator_has_sufficient_credits_to_run_campaign_once(
+            self.broadcast_type,
+            no_of_audiences=self.audiences.count(),
+            campaign_creator=campaign_creator,
+        )
         if not ans:
-            return ans, "You do not have sufficient credits to run this campaign. Please top up."
+            return (
+                ans,
+                "You do not have sufficient credits to run this campaign. Please top up.",
+            )
         return ans, "Campaign can be run"
-    
 
     def is_due(self, *, padding: int | float | None = None):
         """
         Returns True if campaign is due. That is, if the current date is the next due date
-        
-        :param padding: The number of days to add to the current date to get the due date. 
+
+        :param padding: The number of days to add to the current date to get the due date.
         This is useful for checking if a campaign is due at a future or past date (negative padding).
         """
         if padding is None:
             padding = 0
-        todays_date_plus_padding = timezone.now().date() + timezone.timedelta(days=padding)
+        todays_date_plus_padding = timezone.now().date() + timezone.timedelta(
+            days=padding
+        )
         return self.next_due_date == todays_date_plus_padding
-    
 
     def is_expired(self):
         """Returns True if campaign has expired"""
         return self.end_date < timezone.now().date()
-    
 
     def due_today(self, *, save: bool = True, dowell_api_key: str = None):
         """
@@ -288,32 +336,37 @@ class Campaign(DatacubeObject):
             dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
             self.save(dowell_api_key=dowell_api_key)
         return None
-    
 
-    @ttl_cache(maxsize=12, ttl_seconds=60*60*24)
+    @ttl_cache(maxsize=12, ttl_seconds=60 * 60 * 24)
     def get_message(self, dowell_api_key: str = None) -> "CampaignMessage":
         """
         Campaign message object associated with this campaign
 
-        :param dowell_api_key: Optional Dowell API key to use for retrieving campaign message. 
+        :param dowell_api_key: Optional Dowell API key to use for retrieving campaign message.
         If not provided, the campaign creator's API key is used.
-        :returns: Campaign message object associated with this campaign 
+        :returns: Campaign message object associated with this campaign
         or None if no message is associated with this campaign
         """
         import time
-        
+
         start_time = time.time()
-        
+
         workspace_id = self.creator_id
         print("i was called")
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
-        msg = CampaignMessage.manager.filter(campaign_id=self.pkey, dowell_api_key=dowell_api_key,workspace_id=workspace_id, wanted="message").first()
+        msg = CampaignMessage.manager.filter(
+            campaign_id=self.pkey,
+            dowell_api_key=dowell_api_key,
+            workspace_id=workspace_id,
+            wanted="message",
+        ).first()
         end_time = time.time()
         print(f"get_message took to get messages {end_time-start_time} seconds")
         return msg
-    
 
-    def get_reports(self, dowell_api_key: str = None) -> ObjectList["CampaignRunReport"]:
+    def get_reports(
+        self, dowell_api_key: str = None
+    ) -> ObjectList["CampaignRunReport"]:
         """
         Returns a list of reports for this campaign.
 
@@ -321,44 +374,58 @@ class Campaign(DatacubeObject):
         If not provided, the campaign creator's API key is used.
         """
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
-        reports = CampaignRunReport.manager.filter(campaign_id=self.pkey, dowell_api_key=dowell_api_key)
+        reports = CampaignRunReport.manager.filter(
+            campaign_id=self.pkey, dowell_api_key=dowell_api_key
+        )
         return reports
-    
-    
+
     def save(self, dowell_api_key: str = None, using: ObjectDatabase = None):
         import time
+
         start_time = time.time()
         if self.saved:
             try:
-                #todo change this
-                workspace_id=self.creator_id
-                print("id before getting old",workspace_id)
-                workspace_id=self.creator_id
-                old_instance = Campaign.manager.get(pkey=self.pkey, dowell_api_key=settings.PROJECT_API_KEY,workspace_id=workspace_id)
+                # todo change this
+                workspace_id = self.creator_id
+                print("id before getting old", workspace_id)
+                workspace_id = self.creator_id
+                old_instance = Campaign.manager.get(
+                    pkey=self.pkey,
+                    dowell_api_key=settings.PROJECT_API_KEY,
+                    workspace_id=workspace_id,
+                )
             except Campaign.DoesNotExist:
                 old_instance = None
             if old_instance:
                 # Ensure that launch date is not changed after campaign has been launched
-                if old_instance.has_launched and old_instance.launched_at != self.launched_at:
-                    raise DjangoValidationError("You cannot change the launch date of a campaign after it has launched")
+                if (
+                    old_instance.has_launched
+                    and old_instance.launched_at != self.launched_at
+                ):
+                    raise DjangoValidationError(
+                        "You cannot change the launch date of a campaign after it has launched"
+                    )
                 # If a new start date is specified then reset last_due_date
                 if old_instance.start_date != self.start_date:
                     self.last_due_date = None
 
-        if self.is_expired(): # if campaign end date is in the past, deactivate campaign
+        if (
+            self.is_expired()
+        ):  # if campaign end date is in the past, deactivate campaign
             try:
                 self.deactivate(save=False)
             except:
                 pass
         workspace_id = self.creator_id
-        print("the id workspace id",workspace_id)
+        print("the id workspace id", workspace_id)
         # get creator_id to use to save a campaign to creator's collection
         # If no api is not provided use campaign creator's api key
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
-        end_time = time.time() 
+        end_time = time.time()
         print(f"time is took to call first save campaign: {end_time-start_time}")
-        return super().save(using=using, dowell_api_key=dowell_api_key , workspace_id=workspace_id)
-    
+        return super().save(
+            using=using, dowell_api_key=dowell_api_key, workspace_id=workspace_id
+        )
 
     def delete(self, dowell_api_key: str = None, using: ObjectList = None):
         """
@@ -371,9 +438,12 @@ class Campaign(DatacubeObject):
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
         message = self.get_message(dowell_api_key=settings.PROJECT_API_KEY)
         if message:
-            message.delete(using=using, dowell_api_key=dowell_api_key,workspace_id=workspace_id)
-        return super().delete(using=using, dowell_api_key=dowell_api_key,workspace_id=workspace_id)
-    
+            message.delete(
+                using=using, dowell_api_key=dowell_api_key, workspace_id=workspace_id
+            )
+        return super().delete(
+            using=using, dowell_api_key=dowell_api_key, workspace_id=workspace_id
+        )
 
     def validate(self):
         if self.start_date > self.end_date:
@@ -385,23 +455,21 @@ class Campaign(DatacubeObject):
                 f"You cannot schedule this to run {self.frequency.lower()} because the difference between `start_date` and `end_date` is less than a {self.frequency.replace('LY', '').lower()}."
             )
         return super().validate()
-    
 
     def serialize(self):
         serialized = super().serialize()
         serialized["id"] = serialized.pop("pkey")
         # Convert audiences to their dictionary representation
-        serialized["audiences"] = [ audience.data for audience in self.audiences ]
-        serialized["leads_links"] = [ leads_link.data for leads_link in self.leads_links ]
+        serialized["audiences"] = [audience.data for audience in self.audiences]
+        serialized["leads_links"] = [leads_link.data for leads_link in self.leads_links]
         serialized["has_launched"] = self.has_launched
         return serialized
-
 
     def activate(self, save: bool = True, dowell_api_key: str = None):
         """
         Activate campaign. The campaign must have been launched.
         Activating a campaign means that the campaign is now allowed to run when due
-        
+
         :param save: whether to save campaign after activating it
         :param dowell_api_key: Optional Dowell API key to use for activating campaign.
         If not provided, the campaign creator's API key is used.
@@ -409,12 +477,18 @@ class Campaign(DatacubeObject):
         if self.is_active:
             raise DjangoValidationError("Campaign is already active")
         if not self.has_audiences:
-            raise DjangoValidationError("Campaign cannot be activated because it has no audiences")
+            raise DjangoValidationError(
+                "Campaign cannot be activated because it has no audiences"
+            )
         if not self.has_launched:
-            raise DjangoValidationError("Campaign cannot be activated because it has not been launched")
+            raise DjangoValidationError(
+                "Campaign cannot be activated because it has not been launched"
+            )
         if self.end_date < timezone.now().date():
-            raise DjangoValidationError("Campaign cannot be activated because it has already ended")
-        
+            raise DjangoValidationError(
+                "Campaign cannot be activated because it has already ended"
+            )
+
         self.is_active = True
         if save:
             dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
@@ -422,20 +496,19 @@ class Campaign(DatacubeObject):
 
         campaign_activated.send(sender=self.__class__, instance=self)
         return None
-    
 
     def deactivate(self, save: bool = True, dowell_api_key: str = None):
         """
         Deactivate campaign. The campaign must have been launched.
         Deactivating a campaign means that the campaign is not allowed to run when due
-        
+
         :param save: whether to save campaign after deactivating it
         :param dowell_api_key: Optional Dowell API key to use for deactivating campaign.
         If not provided, the campaign creator's API key is used.
         """
         if not self.is_active:
             raise DjangoValidationError("Campaign is already inactive")
-        
+
         self.is_active = False
         if save:
             dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
@@ -443,35 +516,35 @@ class Campaign(DatacubeObject):
 
         campaign_deactivated.send(sender=self.__class__, instance=self)
         return None
-    
 
     def launch(self, dowell_api_key: str = None):
         """
-        Launch campaign. 
-        
-        Launching a campaign means giving a campaign initial permission to run when the set schedule is due. 
+        Launch campaign.
+
+        Launching a campaign means giving a campaign initial permission to run when the set schedule is due.
         The campaign is automatically activated after launch.
 
         :param dowell_api_key: Optional Dowell API key to use for launching campaign.
         If not provided, the campaign creator's API key is used.
         """
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
-        self.creator.credits = 12345678 # TODO: Remove this line
-        can_launch, reason, _ = self.is_launchable(dowell_api_key=settings.PROJECT_API_KEY)
+        self.creator.credits = 12345678  # TODO: Remove this line
+        can_launch, reason, _ = self.is_launchable(
+            dowell_api_key=settings.PROJECT_API_KEY
+        )
         if not can_launch:
             raise DjangoValidationError(f"Campaign cannot be launched. {reason}")
-        
-        self.launched_at = timezone.now() # Set time of launch
+
+        self.launched_at = timezone.now()  # Set time of launch
         self.activate(save=False)
         self.save(dowell_api_key=dowell_api_key)
 
         campaign_launched.send(sender=self.__class__, instance=self)
         return None
-    
-    
+
     def _prerun(self):
         """Runs necessary checks before running campaign"""
-        self.creator.credits = 12345678 # TODO: Remove this line
+        self.creator.credits = 12345678  # TODO: Remove this line
         can_run, reason = self.is_runnable(dowell_api_key=settings.PROJECT_API_KEY)
 
         if not can_run:
@@ -492,11 +565,10 @@ class Campaign(DatacubeObject):
                 pass
             raise DjangoValidationError(f"Campaign cannot be run. {reason}")
         return None
-    
 
     def _started_running(self):
         """
-        Called when the campaign starts running. 
+        Called when the campaign starts running.
         Just about when the campaign's message is broadcasted to all subscribers(audiences).
 
         :return: `CampaignRunReport` to be used while the campaign runs
@@ -507,9 +579,9 @@ class Campaign(DatacubeObject):
         self.save(dowell_api_key=settings.PROJECT_API_KEY)
         # Create a new run report for campaign but do not save it yet
         run_report: CampaignRunReport = CampaignRunReport.manager.create(
-            campaign_id=self.pkey, 
+            campaign_id=self.pkey,
             title=f"New Run Report for Campaign: '{self.title.title()}'",
-            save=False
+            save=False,
         )
         event_data = {
             "detail": f"Campaign: '{self.title.title()}', started running.",
@@ -517,16 +589,13 @@ class Campaign(DatacubeObject):
         run_report.add_event(event_type="INFO", data=event_data)
         # Do not save the report yet until campaign has finished running
         campaign_started_running.send(
-            sender=self.__class__, 
-            instance=self, 
-            run_report=run_report
+            sender=self.__class__, instance=self, run_report=run_report
         )
         return run_report
 
-
     def _stopped_running(self, run_report: CampaignRunReport, exc: Exception = None):
         """
-        Called when the campaign stops running. 
+        Called when the campaign stops running.
         After the campaign's message has been broadcasted to all subscribers(audiences).
 
         :param run_report: `CampaignRunReport` used while the campaign was running.
@@ -540,31 +609,31 @@ class Campaign(DatacubeObject):
             }
             run_report.add_event(event_type="ERROR", data=event_data)
             # Save the report used while running
-            run_report.save(dowell_api_key=settings.PROJECT_API_KEY,workspace_id=self.creator_id)
+            run_report.save(
+                dowell_api_key=settings.PROJECT_API_KEY, workspace_id=self.creator_id
+            )
         except:
             raise
         finally:
             # Ensure that campaign is saved even if an error occurs
             self.save(dowell_api_key=settings.PROJECT_API_KEY)
 
-        # Finally, Send campaign stopped running signal 
+        # Finally, Send campaign stopped running signal
         # irrespective of whether an error occurred or not
         campaign_stopped_running.send(
-            sender=self.__class__, 
-            instance=self,
-            run_report=run_report, 
-            exception=exc
+            sender=self.__class__, instance=self, run_report=run_report, exception=exc
         )
         return None
 
-
     def run(
-            self, 
-            raise_exception: bool = False, 
-            log_errors: bool = True,
-            dowell_api_key: str = None
-        ):
-        print("-----------------------------------------------------------------Called to run-----------------------------")
+        self,
+        raise_exception: bool = False,
+        log_errors: bool = True,
+        dowell_api_key: str = None,
+    ):
+        print(
+            "-----------------------------------------------------------------Called to run-----------------------------"
+        )
         """
         Run campaign. Send messages to campaign audiences
         
@@ -577,19 +646,28 @@ class Campaign(DatacubeObject):
         dowell_api_key = dowell_api_key if dowell_api_key else self.creator.api_key
 
         logger = get_logger(
-            name="campaigns", 
-            logfile_path=os.path.join(settings.LOG_PATH, f"run_campaigns_{timezone.now().date().isoformat()}.log"),
-            base_level="ERROR"
-        ) # Logs campaign run errors
+            name="campaigns",
+            logfile_path=os.path.join(
+                settings.LOG_PATH,
+                f"run_campaigns_{timezone.now().date().isoformat()}.log",
+            ),
+            base_level="ERROR",
+        )  # Logs campaign run errors
 
         e = None
         run_report = self._started_running()
         try:
-            print("--------------------------- part 2 of called to run------------------------------------")
+            print(
+                "--------------------------- part 2 of called to run------------------------------------"
+            )
             message = self.get_message(dowell_api_key=dowell_api_key)
-            print("we have message",message)
+            print("we have message", message)
             subscribers = self.audiences.subscribed()
-            print("users are subscribed",subscribers)
+            print("users are subscribed", subscribers)
+            for subscriber in subscribers:
+                print("this is subscriber email sent status",subscriber.email_sent)
+                subscriber.email_sent = True
+                print("this is subscriber email sent status after changing to true",subscriber.email_sent)
             message.send(to=subscribers, report=run_report)
 
         except Exception as exc:
@@ -598,11 +676,10 @@ class Campaign(DatacubeObject):
                 logger.error(traceback.format_exc())
             if raise_exception:
                 raise exc
-            
+
         finally:
             self._stopped_running(exc=e, run_report=run_report)
         return None
-    
 
     def add_audience(self, contact: str, url: str = None):
         """
@@ -611,54 +688,51 @@ class Campaign(DatacubeObject):
         :param contact: email or phone number of audience to add
         :param id: optional ID for the audience
         """
-        print("this is id passed inside the add_audience",url)
+        print("this is id passed inside the add_audience", url)
         if self.broadcast_type.lower() == "sms":
-            audience = CampaignAudience(phonenumber=contact,url=url)
+            audience = CampaignAudience(phonenumber=contact, url=url)
         else:
             print("from link")
-            audience = CampaignAudience(email=contact,url=url)
+            audience = CampaignAudience(email=contact, url=url)
 
         self.audiences.append(audience)
         return None
 
-    
     def add_leads_link(self, url: str):
         """
         Add leads link to campaign
-        
+
         :param url: link to leads page
         """
         leads_link = CampaignAudienceLeadsLink(url=url)
         self.leads_links.append(leads_link)
         return None
-    
 
     def crawl_leads_links_and_update_audiences(self, crawl_depth: int = 0):
         """
-        Crawl leads links for audiences. Add audiences found to campaign audiences. 
+        Crawl leads links for audiences. Add audiences found to campaign audiences.
         Do not forget to save after calling this method.
 
         :param crawl_depth: The depth to crawl the links
         """
         results = self.leads_links.crawl(
-            campaign_creator=self.creator, 
-            crawl_depth=crawl_depth
+            campaign_creator=self.creator, crawl_depth=crawl_depth
         )
         for result in results:
             if self.broadcast_type.lower() == "sms":
                 phonenumbers = result.get("phone_numbers", [])
                 url = result.get("url")
-                print("this is id before adding the audience",url)
+                print("this is id before adding the audience", url)
                 for phonenumber in phonenumbers:
-                    self.add_audience(contact=phonenumber,url=url)
+                    self.add_audience(contact=phonenumber, url=url)
 
             elif self.broadcast_type.lower() == "email":
                 emails = result.get("emails", [])
                 url = result.get("url")
-                print("this is id before adding the audience",url)
+                print("this is id before adding the audience", url)
                 for email in emails:
-                    print("this is email to be added",email)
-                    self.add_audience(contact=email,url=url)
+                    print("this is email to be added", email)
+                    self.add_audience(contact=email, url=url)
         return None
 
 
@@ -671,6 +745,7 @@ class CampaignAudience(DatacubeObject):
     audiences in a campaign so actions can be performed on them just like any
     other Object.
     """
+
     config = DatacubeObject.new_config()
     # Do not migrate this Object class to the datacube database
     config.migrate = False
@@ -680,7 +755,8 @@ class CampaignAudience(DatacubeObject):
         "phonenumber": (str,),
         "email": (str,),
         "is_subscribed": (bool,),
-        "is_verified":(bool,),
+        "is_verified": (bool,),
+        "email_sent": (bool,),
         "added_at": (datetime.datetime,),
         "url": (str,),  # New attribute for storing the provided url
     }
@@ -688,7 +764,8 @@ class CampaignAudience(DatacubeObject):
         "id": generate_random_string,
         "added_at": timezone.now,
         "is_subscribed": True,
-        "is_verified":True,
+        "is_verified": True,
+        "email_sent": False,
     }
     config.validators = {
         "phonenumber": [validate_not_blank, is_phonenumber],
@@ -697,7 +774,7 @@ class CampaignAudience(DatacubeObject):
     config.ordering = ("-added_at",)
 
     def __init__(self, *args, **kwargs):
-        provided_url = kwargs.pop('url', None)
+        provided_url = kwargs.pop("url", None)
         super().__init__(*args, **kwargs)
         if provided_url is not None:
             self.url = provided_url
@@ -722,12 +799,11 @@ class CampaignAudience(DatacubeObject):
         self.is_subscribed = False
         return None
 
-    def save(self, dowell_api_key: str = None, using = None):
+    def save(self, dowell_api_key: str = None, using=None):
         raise Exception("CampaignAudience objects cannot be saved")
 
-    def delete(self, *, dowell_api_key: str, using = None):
+    def delete(self, *, dowell_api_key: str, using=None):
         raise Exception("CampaignAudience objects cannot be deleted")
-
 
 
 @as_manager(CampaignAudienceLeadsLinkList)
@@ -739,6 +815,7 @@ class CampaignAudienceLeadsLink(DatacubeObject):
     leads links in a campaign so actions can be performed on them just like any
     other Object.
     """
+
     config = DatacubeObject.new_config()
     config.migrate = False
     config.attributes = {
@@ -746,63 +823,59 @@ class CampaignAudienceLeadsLink(DatacubeObject):
         "url": (str,),
         "is_crawled": (bool,),
         "added_at": (datetime.datetime,),
-        "links": (list,)  # Adding the new attribute here
+        "links": (list,),  # Adding the new attribute here
     }
     config.defaults = {
         "id": generate_random_string,
         "added_at": timezone.now,
         "is_crawled": False,
-        "links": []  # Setting the default value for the new attribute
+        "links": [],  # Setting the default value for the new attribute
     }
     config.validators = {
         "url": [validate_not_blank, validate_url],
     }
     config.ordering = ("-added_at",)
-    
+
     def serialize(self):
         serialized = super().serialize()
         serialized.pop("pkey", None)
         return serialized
-    
 
-    def save(self, dowell_api_key: str = None, using = None):
+    def save(self, dowell_api_key: str = None, using=None):
         raise Exception("CampaignAudienceLeadsLink objects cannot be saved")
 
-    def delete(self, *, dowell_api_key: str, using = None):
+    def delete(self, *, dowell_api_key: str, using=None):
         raise Exception("CampaignAudienceLeadsLink objects cannot be deleted")
-    
 
     def crawl(self, *, campaign_creator: str | DowellUser, crawl_depth: int = 0):
         """
         Crawl leads page for audiences if not already crawled
 
-        :param campaign_creator: Workspace ID of or DowellUser object of 
+        :param campaign_creator: Workspace ID of or DowellUser object of
         creator of the campaign this leads link belongs to.
         :param crawl_depth: The depth to crawl the links
         """
         return asyncio.run(
-            self.acrawl(
-                campaign_creator=campaign_creator,
-                crawl_depth=crawl_depth
-            )
+            self.acrawl(campaign_creator=campaign_creator, crawl_depth=crawl_depth)
         )
-    
 
     async def acrawl(self, *, campaign_creator: str | DowellUser, crawl_depth: int = 0):
         """
         Asynchronously crawl leads page for audiences if not already crawled
 
-        :param campaign_creator: Workspace ID of or DowellUser object of 
+        :param campaign_creator: Workspace ID of or DowellUser object of
         creator of the campaign this leads link belongs to.
         :param crawl_depth: The depth to crawl the links
         """
         async with DeductUserCreditsOnServiceUse(
-            user=campaign_creator, 
+            user=campaign_creator,
             service=settings.DOWELL_SAMANTHA_CAMPAIGNS_SERVICE_ID,
             subservices=[settings.DOWELL_WEBSITE_CRAWLER_SUBSERVICE_ID],
             count=1,
-            auto_deduct=not getattr(settings, "DISABLE_DOWELL_AUTO_DEDUCT_CREDITS", False)
-        ):  
+            auto_deduct=not getattr(
+                settings, "DISABLE_DOWELL_AUTO_DEDUCT_CREDITS", False
+            ),
+        ):
             sys.stdout.write(self.url)
             result = await crawl([self.url])
             print("this is the results inside await crawl", result)
@@ -810,10 +883,10 @@ class CampaignAudienceLeadsLink(DatacubeObject):
             # Add self.url to the result dictionary
             if isinstance(result, list):
                 for item in result:
-                    item['url'] = self.url
+                    item["url"] = self.url
             elif isinstance(result, dict):
-                result['url'] = self.url
-            print("result after adding the id to results",result)
+                result["url"] = self.url
+            print("result after adding the id to results", result)
             self.is_crawled = True
             self.links = result.get("links")
             return result
@@ -821,10 +894,11 @@ class CampaignAudienceLeadsLink(DatacubeObject):
 
 class CampaignMessage(DatacubeObject):
     """Campaign Message Object"""
+
     config = DatacubeObject.new_config()
     config.attributes = {
         "campaign_id": (str,),
-        "workspace_id": (str,), # workspace ID of DowellUser
+        "workspace_id": (str,),  # workspace ID of DowellUser
         "type": (str,),
         "subject": (str,),
         "body": (str,),
@@ -855,14 +929,14 @@ class CampaignMessage(DatacubeObject):
         "subject": [validate_not_blank, min_max(min_length=3, max_length=255)],
         "body": [validate_not_blank, min_max(min_length=10, max_length=5000)],
         "sender": [validate_email_or_phone_number],
-        "workspace_id": [validate_not_blank], 
+        "workspace_id": [validate_not_blank],
     }
     config.ordering = ("-created_at",)
     config.auto_now_datetimes = ("updated_at",)
-    
+
     # Cache the campaign object. Since the campaign_id will most likely not change,
     #  we can cache the first result and then use it for subsequent calls
-    @ttl_cache(maxsize=12, ttl_seconds=60*60*24)
+    @ttl_cache(maxsize=12, ttl_seconds=60 * 60 * 24)
     def get_campaign(self, dowell_api_key: str) -> Campaign:
         """
         Campaign object associated with this message
@@ -872,8 +946,11 @@ class CampaignMessage(DatacubeObject):
         print("getting campaign")
         workspace_id = self.workspace_id
         print("Check for campaign GET", workspace_id)
-        return Campaign.manager.get(pkey=self.campaign_id, dowell_api_key=dowell_api_key,workspace_id=workspace_id)
-    
+        return Campaign.manager.get(
+            pkey=self.campaign_id,
+            dowell_api_key=dowell_api_key,
+            workspace_id=workspace_id,
+        )
 
     def validate(self):
         # validating user data
@@ -886,21 +963,19 @@ class CampaignMessage(DatacubeObject):
                 self.config.validators["sender"] = [is_phonenumber]
         return super().validate()
 
-
     def serialize(self):
         serialized = super().serialize()
         serialized["id"] = serialized.pop("pkey")
         return serialized
 
-
     def send(
-            self, 
-            to: ObjectList[CampaignAudience] | CampaignAudience, 
-            *,
-            limit: int = 0,
-            report: CampaignRunReport = None
-        ):  
-        print("called to send")  
+        self,
+        to: ObjectList[CampaignAudience] | CampaignAudience,
+        *,
+        limit: int = 0,
+        report: CampaignRunReport = None,
+    ):
+        print("called to send")
         """
         Send message to campaign audience(s)
 
@@ -911,105 +986,104 @@ class CampaignMessage(DatacubeObject):
 
         if not self.sender:
             raise DjangoValidationError("Message sender cannot be empty.")
-            
+
         recipients = list(to)
         if limit > 0:
             recipients = recipients[:limit]
         print("i got here part 2")
         if report:
             report.add_event(
-                event_type="INFO", 
+                event_type="INFO",
                 data={
                     "detail": f"Started {self.type} broadcast to {len(recipients)} audiences."
-                }
+                },
             )
         print("done reporting")
         asyncio.run(
-            getattr(self, f"_send_as_{self.type.lower()}")(
-                to=recipients, 
-                report=report
-            )
+            getattr(self, f"_send_as_{self.type.lower()}")(to=recipients, report=report)
         )
 
         if report:
-            failures = len(list(filter(lambda event: event["type"] == "ERROR", report.events)))
+            failures = len(
+                list(filter(lambda event: event["type"] == "ERROR", report.events))
+            )
             print("this are the failures")
             report.add_event(
-                event_type="INFO", 
+                event_type="INFO",
                 data={
                     "detail": f"Completed {self.type} broadcast with {len(failures)} failures."
-                }
+                },
             )
         return None
 
-
     async def _send_as_email(
-            self, 
-            to: List[CampaignAudience], 
-            *,
-            report: CampaignRunReport,
-        ):
+        self,
+        to: List[CampaignAudience],
+        *,
+        report: CampaignRunReport,
+    ):
         """Send message as email"""
         print("------------Send message as email-----------")
         if not isinstance(to, list):
             raise ValueError("`to` should be of type list")
-        
+
         limiter = aiolimiter.AsyncLimiter(20)
         async with limiter:
             async with httpx.AsyncClient() as client:
                 print("calling send to audience")
                 tasks = [
                     self._send_email_to_audience(
-                        audience=audience, 
-                        client=client,
-                        report=report
-                    ) 
-                    for audience in to 
+                        audience=audience, client=client, report=report
+                    )
+                    for audience in to
                 ]
                 await asyncio.gather(*tasks)
         return None
 
-
     async def _send_as_sms(
-            self, 
-            to: List[CampaignAudience], 
-            *,
-            report: CampaignRunReport = None,
-        ):
+        self,
+        to: List[CampaignAudience],
+        *,
+        report: CampaignRunReport = None,
+    ):
         """Send message as sms"""
         if not isinstance(to, list):
             raise ValueError("`to` should be of type list")
-        
+
         limiter = aiolimiter.AsyncLimiter(20)
         async with limiter:
             async with httpx.AsyncClient() as client:
-                tasks = [ 
+                tasks = [
                     self._send_sms_to_audience(
-                        audience=audience, 
-                        client=client, 
-                        report=report
-                    ) 
-                    for audience in to 
+                        audience=audience, client=client, report=report
+                    )
+                    for audience in to
                 ]
                 await asyncio.gather(*tasks)
         return None
 
-
     async def _send_email_to_audience(
-            self, 
-            audience: CampaignAudience,
-            *,
-            client: httpx.AsyncClient = None, 
-            report: CampaignRunReport = None
-        ):
+        self,
+        audience: CampaignAudience,
+        *,
+        client: httpx.AsyncClient = None,
+        report: CampaignRunReport = None,
+    ):
         """Send email to audience"""
-        print("the send mail to audience is called and this is audience ",audience.email)
+        print(
+            "the send mail to audience is called and this is audience ", audience.email
+        )
         if audience.email:
             client = client or httpx.AsyncClient()
             print("i got inside")
             campaign = self.get_campaign(dowell_api_key=settings.PROJECT_API_KEY)
-            print("campaign inside async def _send_email_to_audience",campaign)
-            unsubscribe_url = urljoin(settings.API_BASE_URL, f"campaigns/{campaign.pkey}/audiences/unsubscribe/?audience_id={audience.id}")
+            print("campaign inside async def _send_email_to_audience", campaign)
+            workspace_id = self.workspace_id
+            print("user wordspace id",workspace_id)
+            unsubscribe_url = urljoin(
+                settings.API_BASE_URL,
+                f"campaignsV2/{campaign.pkey}/audiences/unsubscribe/?audience_id={audience.id}&workspace_id={workspace_id}",
+            )
 
             mail_kwargs = {
                 "subject": self.subject,
@@ -1017,9 +1091,9 @@ class CampaignMessage(DatacubeObject):
                 "sender_name": campaign.creator.username,
                 "sender_address": self.sender,
                 "recipient_address": audience.email,
-                "client": client
+                "client": client,
             }
-            
+
             if self.is_html_email:
                 # if the server is not working send normal body html
                 html_body = fetch_email(self.html_email_link)
@@ -1029,59 +1103,60 @@ class CampaignMessage(DatacubeObject):
                     # if the fetching email template has a problem we sent normal email
                     mail_kwargs["body"] = construct_dowell_email_template(
                         subject=self.subject,
-                        body=self.body, 
+                        body=self.body,
                         image_url=campaign.image,
-                        unsubscribe_link=unsubscribe_url
+                        unsubscribe_link=unsubscribe_url,
                     )
             else:
                 mail_kwargs["body"] = construct_dowell_email_template(
-                        subject=self.subject,
-                        body=self.body,
-                        image_url=campaign.image,
-                        unsubscribe_link=unsubscribe_url
-                    )
+                    subject=self.subject,
+                    body=self.body,
+                    image_url=campaign.image,
+                    unsubscribe_link=unsubscribe_url,
+                )
             try:
                 await async_send_mail(**mail_kwargs)
                 if report:
                     report.add_event(
-                        event_type="INFO", 
+                        event_type="INFO",
                         data={
                             "detail": f"Message successfully sent to {audience.email}",
-                            "audience_id": audience.pkey
-                        }
+                            "audience_id": audience.pkey,
+                        },
                     )
             except Exception as exc:
                 if report:
                     report.add_event(
-                        event_type="ERROR", 
+                        event_type="ERROR",
                         data={
                             "detail": f"Message failed to send to {audience.email}",
                             "error": str(exc),
-                            "audience_id": audience.pkey
-                        }
+                            "audience_id": audience.pkey,
+                        },
                     )
         return None
-        
-    
+
     async def _send_sms_to_audience(
-            self, 
-            audience: CampaignAudience, 
-            *,
-            client: httpx.AsyncClient = None, 
-            report: CampaignRunReport = None
-        ):
+        self,
+        audience: CampaignAudience,
+        *,
+        client: httpx.AsyncClient = None,
+        report: CampaignRunReport = None,
+    ):
         """Send sms to audience"""
         if audience.phonenumber:
             client = client or httpx.AsyncClient()
             campaign = self.get_campaign(dowell_api_key=settings.PROJECT_API_KEY)
 
             sms_kwargs = {
-                "message": f"{self.subject}\n {self.body}" if self.subject else self.body,
+                "message": f"{self.subject}\n {self.body}"
+                if self.subject
+                else self.body,
                 "sender_name": campaign.creator.username,
                 "sender_phonenumber": self.sender,
                 "recipient_phonenumber": audience.phonenumber,
                 "user": campaign.creator,
-                "client": client
+                "client": client,
             }
             try:
                 await async_send_sms(**sms_kwargs)
@@ -1090,17 +1165,17 @@ class CampaignMessage(DatacubeObject):
                         event_type="INFO",
                         data={
                             "detail": f"Message successfully sent to {audience.phonenumber}",
-                            "audience_id": audience.pkey
-                        }
+                            "audience_id": audience.pkey,
+                        },
                     )
             except Exception as exc:
                 if report:
                     report.add_event(
-                        event_type="ERROR", 
+                        event_type="ERROR",
                         data={
                             "detail": f"Message failed to send to {audience.phonenumber}",
                             "error": str(exc),
-                            "audience_id": audience.pkey
-                        }
+                            "audience_id": audience.pkey,
+                        },
                     )
         return None

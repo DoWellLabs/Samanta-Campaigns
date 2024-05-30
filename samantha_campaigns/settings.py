@@ -169,7 +169,7 @@ APPEND_SLASH = True
 # API SPECIFIC SETTINGS #
 #########################
 
-API_BASE_URL = "https://samanta100111.pythonanywhere.com/api/v1/"
+API_BASE_URL = "https://www.uxlive.me/samanta-campaigns/api/v1/"
 
 PROJECT_NAME = "Samantha Campaigns"
 

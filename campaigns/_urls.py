@@ -51,7 +51,7 @@ urlpatterns = [
     ),
     path(
         "<str:campaign_id>/audiences/unsubscribe/",
-        _views.campaign_audience_unsubscribe_view,
+        _views.campaign_audience_unsubscribe_view.as_view(),
         name="campaign-audience-unsubscribe",
     ),
     path(

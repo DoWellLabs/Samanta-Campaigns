@@ -894,43 +894,45 @@ class CampaignAudienceListAddAPIView(SamanthaCampaignsAPIView):
 
 
 # todo add workspace_id
-@require_http_methods(["GET"])
-def campaign_audience_unsubscribe_view(request, *args, **kwargs):
-    """
-    Unsubscribes an audience from a campaign
-    """
-    campaign_id = kwargs.get("campaign_id", None)
-    audience_id = request.GET.get("audience_id", None)
-    msg = "You have successfully unsubscribed from this campaign."
-
-    try:
-        if not campaign_id:
-            raise exceptions.NotAcceptable("Campaign id must be provided.")
-        if not audience_id:
-            raise exceptions.NotAcceptable("Audience id must be provided.")
-
-        campaign = Campaign.manager.get(
-            pkey=campaign_id, dowell_api_key=settings.PROJECT_API_KEY
-        )
-
-        audience = campaign.audiences.get(id=audience_id)
+#todo add workspace_id
+class campaign_audience_unsubscribe_view(SamanthaCampaignsAPIView):
+    def get(self,request,*args, **kwargs):
+        """
+        Unsubscribes an audience from a campaign
+        """
+        campaign_id = kwargs.get("campaign_id", None)
+        audience_id = request.GET.get("audience_id", None)
+        workspace_id = request.GET.get("workspace_id",None)
+        msg = "You have successfully unsubscribed from this campaign."
         try:
-            audience.unsubscribe()
+            if not campaign_id:
+                raise exceptions.NotAcceptable("Campaign id must be provided.")
+            if not audience_id:
+                raise exceptions.NotAcceptable("Audience id must be provided.")
+            campaign: Campaign = Campaign.manager.get(
+                creator_id=workspace_id,
+                pkey=campaign_id,
+                dowell_api_key=settings.PROJECT_API_KEY,
+                workspace_id=workspace_id,
+            )
+            print("got campaign",campaign)
+            audience = campaign.audiences.get(id=audience_id)
+            try:
+                audience.unsubscribe()
+            except:
+                msg = "You have already been unsubscribed from this campaign."
+            finally:
+                campaign.save(dowell_api_key=settings.PROJECT_API_KEY)
+
         except:
-            msg = "You have already been unsubscribed from this campaign."
-        finally:
-            campaign.save(dowell_api_key=settings.PROJECT_API_KEY)
+            msg = "<h3>Something went wrong! Please check the link and try again. part 2</h3>"
+            return HttpResponse(msg, status=400)
 
-    except:
-        msg = "<h3>Something went wrong! Please check the link and try again.</h3>"
-        return HttpResponse(msg, status=400)
-
-    html_response = construct_dowell_email_template(
-        subject=f"Unsubscribe from Campaign: '{campaign.title}'",
-        body=msg,
-        recipient=audience.email,
-    )
-    return HttpResponse(html_response, status=200)
+        html_response = construct_dowell_email_template(
+            subject=f"Unsubscribe from Campaign: '{campaign.title}'",
+            body=msg
+        )
+        return HttpResponse(html_response, status=200)
 
 
 class CampaignMessageCreateRetreiveAPIView(SamanthaCampaignsAPIView):
