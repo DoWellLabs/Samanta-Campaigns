@@ -403,15 +403,15 @@ class TestSmS(SamanthaCampaignsAPIView):
         if message:
             body = message.body
 
-            res = self.send_sms(
-                message=body,
-                recipient_name=recipient_name,
-                recipient_phone_number=recipient_phone_number,
-                sender_name=sender_name,
-                sender_phone_number=sender_phone_number,
-                dowell_api_key=settings.PROJECT_API_KEY,
-            )
-            print(res)
+            # res = self.send_sms(
+            #   message=body,
+            #  recipient_name=recipient_name,
+            # recipient_phone_number=recipient_phone_number,
+            # sender_name=sender_name,
+            # sender_phone_number=sender_phone_number,
+            # dowell_api_key=settings.PROJECT_API_KEY,
+            # )
+            # print(res)
             return Response({"success": True, "message": "Sms sent"})
 
         else:
@@ -1292,10 +1292,10 @@ class DataUpload(SamanthaCampaignsAPIView):
             response["Content-Disposition"] = f"attachment; filename={csv_filename}"
 
         return response
-    
+
 
 class TestingRun(SamanthaCampaignsAPIView):
-    def post(self,request):
+    def post(self, request):
         workspace_id = request.query_params.get("workspace_id")
         campaign_id = request.data.get("campaign_id")
         user = DowellUser(workspace_id=workspace_id)
@@ -1304,15 +1304,14 @@ class TestingRun(SamanthaCampaignsAPIView):
             pkey=campaign_id,
             dowell_api_key=settings.PROJECT_API_KEY,
             workspace_id=workspace_id,
-            wanted="campaign"
+            wanted="campaign",
         )
         res = campaign.run(
-                raise_exception=False,
-                log_errors=True,
-                dowell_api_key=settings.PROJECT_API_KEY
-            )
+            raise_exception=False,
+            log_errors=True,
+            dowell_api_key=settings.PROJECT_API_KEY,
+        )
         return Response(res)
-        
 
 
 campaign_list_create_api_view = CampaignListCreateAPIView.as_view()
