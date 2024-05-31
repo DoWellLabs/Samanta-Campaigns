@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   samanta-campaigns-backend:
-    build: 
+    build:
       context: .
     container_name: samanta-campaigns-backend
     restart: always
@@ -16,6 +16,16 @@ services:
     networks:
       - webnet
 
+  samanta-campaigns-backend2:
+    build:
+      context: .
+    container_name: samanta-campaigns-backend
+    restart: always
+    command: python3 manage.py runserver 0.0.0.0:8001
+    volumes:
+      - .:/usr/src/app
+    networks:
+      - webnet
   script-link-task:
     build:
       context: .
@@ -26,7 +36,7 @@ services:
       - .:/usr/src/app
     networks:
       - webnet
-    
+
   run-due-task:
     build:
       context: .
@@ -37,7 +47,7 @@ services:
       - .:/usr/src/app
     networks:
       - webnet
-  
+
   deactivate-active-task:
     build:
       context: .
@@ -48,7 +58,6 @@ services:
       - .:/usr/src/app
     networks:
       - webnet
-  
 
 networks:
   webnet:
