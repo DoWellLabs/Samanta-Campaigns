@@ -16,7 +16,7 @@ def get_workspace_ids():
 
 
 def send_request(session, workspace_id):
-    url = f"http://samanta-campaigns-backend2:8001/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}"
+    url = f"https://samanta100111.pythonanywhere.com/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}"
     data = {
         "event": "task_due",
         "task_name": "crawl_campaigns_leads_links",
@@ -64,4 +64,4 @@ def request_task_run():
 if __name__ == "__main__":
     while True:
         request_task_run()
-        time.sleep(60 * 5)
+        time.sleep(60 * 10)

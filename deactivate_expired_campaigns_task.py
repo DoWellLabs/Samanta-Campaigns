@@ -24,7 +24,7 @@ def request_task_run():
     for workspace_id in workspace_ids:
         print(workspace_id)
         response = session.post(
-            url=f"https://www.uxlive.me/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
+            url=f"https://samanta100111.pythonanywhere.com/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
             #url=f"http://localhost:8001/samanta-campaigns/api/v1/campaignsV2/webhooks/tasks/?workspace_id={workspace_id}",
             json={
                 "event": "task_due",
