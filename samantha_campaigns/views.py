@@ -8,21 +8,24 @@ import time
 from rest_framework.response import Response
 
 
-
-@method_decorator(csrf.csrf_exempt, name='dispatch')
+@method_decorator(csrf.csrf_exempt, name="dispatch")
 class HealthCheckAPIView(APIView):
     """API Status"""
+
     def get(self, request, *args, **kwargs):
         return response.Response(
-            data={"detail": "If you are seeing this, The backend server is running @v1.0.5"}, 
-            status=status.HTTP_200_OK
+            data={
+                "detail": "If you are seeing this, The backend server is running @v1.0.6"
+            },
+            status=status.HTTP_200_OK,
         )
+
 
 health_check_api_view = HealthCheckAPIView.as_view()
 
 
 # @method_decorator(csrf.csrf_exempt, name='dispatch')
-@api_view(['GET'])
+@api_view(["GET"])
 def request_task_run(request):
     print("hello world")
     session = requests.Session()
@@ -32,8 +35,8 @@ def request_task_run(request):
         json={
             "event": "task_due",
             "task_name": "crawl_campaigns_leads_links",
-            "passkey": "1eb$fyirun-gh2j3go1n4u12@i"
-        }
+            "passkey": "1eb$fyirun-gh2j3go1n4u12@i",
+        },
     )
     if response.status_code < 500:
         print(response.json())
@@ -41,4 +44,3 @@ def request_task_run(request):
     print(response.raise_for_status())
     return Response({"error": "problem when running tasks"})
     # response.raise_for_status()
-
