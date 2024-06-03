@@ -348,28 +348,62 @@ class ContactUs:
         
         return {"status": response.status_code}
 
-
 class Scrape_contact_us:
     @staticmethod
     def scrape(workspace_id):
-        collection_name = f"{workspace_id}_contact_us"
-        print(collection_name)
-        dowell_datacube = DowellDatacube(db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY)
-        filters = {"page_links": {"$exists": True}}
-        results = dowell_datacube.fetch(collection_name, filters=filters)
-        print(results)
-        links = []
-        for result in results:
-            links.extend(result.get("page_links", []))
-        url = "https://uxlivinglab100106.pythonanywhere.com/api/contact-us-extractor/"
-        payload = {
-            "page_links":links
-        }
-        res = requests.post(url,json=payload)
-        data={
-            "response":res
-        }
-        return data
+        try:
+            collection_name = f"{workspace_id}_contact_us"
+            print(collection_name)
+            database_name = f"{workspace_id}_samanta_campaign_db"
+            dowell_datacube = DowellDatacube(db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY)
+            filters = {"is_crawled": False}
+            results = dowell_datacube.fetch(_from=collection_name, filters=filters)
+
+            if not results:
+                return None
+
+            links = []
+            for result in results:
+                links.extend(result.get("page_links", []))
+                url = "https://uxlivinglab100106.pythonanywhere.com/api/contact-us-extractor/"
+                payload = {
+                    "page_links": links
+                }
+                
+                try:
+                    res = requests.post(url, json=payload)
+                    res.raise_for_status()
+                except requests.RequestException as e:
+                    print(f"Error making request to contact-us-extractor API: {e}")
+                    continue
+
+                try:
+                    form_fields = res.json()
+                except ValueError as e:
+                    print(f"Error parsing JSON response: {e}")
+                    continue
+
+                data = {
+                    "form_fields": form_fields,
+                    "is_crawled": True
+                }
+                id = result.get("_id")
+                filter = {
+                    "_id": id
+                }
+                print("This is filter", filter)
+
+                try:
+                    updated = dowell_datacube.update(_in=collection_name, filter=filter, data=data)
+                except Exception as e:
+                    print(f"Error updating the database: {e}")
+                    continue
+                
+                return updated
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
 
 def page_links(links):
     """

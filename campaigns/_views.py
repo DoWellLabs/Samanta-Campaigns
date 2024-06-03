@@ -1222,8 +1222,9 @@ class ContactUsView(SamanthaCampaignsAPIView):
                 raise APIException("Workspace ID is required.")
 
             collection_name = f"{workspace_id}_contact_us"
+            database_name = f"{workspace_id}_samanta_campaign_db"
             dowell_datacube = DowellDatacube(
-                db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY
+                db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
             )
             filters = {"page_links": {"$exists": True}}
             result = dowell_datacube.fetch(collection_name, filters=filters)
@@ -1242,10 +1243,12 @@ class ContactUsView(SamanthaCampaignsAPIView):
             links = request.data.get("links")
             if not links:
                 raise APIException("Links data is required.")
-
+            form_fields = []
+            
             collection_name = f"{workspace_id}_contact_us"
-            dowell_datacube = DowellDatacube(
-                db_name="Samanta_CampaignDB", dowell_api_key=settings.PROJECT_API_KEY
+            database_name = f"{workspace_id}_samanta_campaign_db"
+            dowell_datacube = DowellDatacubeV2(
+                db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
             )
 
             # Validate the links data
@@ -1253,8 +1256,11 @@ class ContactUsView(SamanthaCampaignsAPIView):
             serializer.is_valid(raise_exception=True)
 
             # Insert data into the database
-            data = serializer.validated_data
-            result = dowell_datacube.insert(_into=collection_name, data=data)
+            serialized_data = serializer.validated_data
+            print(serialized_data)
+            serialized_data["is_crawled"] = False  # Add is_crawled attribute
+            serialized_data["form_fields"] = form_fields  # Add form_fields attribute
+            result = dowell_datacube.insert(_into=collection_name, data=serialized_data)
 
             return Response(result)
 
@@ -1266,8 +1272,13 @@ class CrawlLinks(SamanthaCampaignsAPIView):
     def post(self, request):
         workspace_id = request.query_params.get("workspace_id")
         print(workspace_id)
-        scrape = Scrape_contact_us.scrape(workspace_id=workspace_id)
-        return Response(scrape)
+        scrape_result = Scrape_contact_us.scrape(workspace_id=workspace_id)
+
+        if scrape_result is None:
+            return Response({"message": "Form data already crawled or an error occurred."}, status=200)
+        else:
+            return Response({"message": "Done crawling form data.", "data": scrape_result}, status=200)
+
 
 
 class DataUpload(SamanthaCampaignsAPIView):
