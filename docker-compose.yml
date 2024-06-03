@@ -16,16 +16,6 @@ services:
     networks:
       - webnet
 
-  samanta-campaigns-backend2:
-    build:
-      context: .
-    container_name: samanta-campaigns-backend2
-    restart: always
-    command: python3 manage.py runserver 0.0.0.0:8001
-    volumes:
-      - .:/usr/src/app
-    networks:
-      - webnet
   script-link-task:
     build:
       context: .
@@ -54,6 +44,17 @@ services:
     container_name: deactivate-active-task
     restart: always
     command: python3 deactivate_expired_campaigns_task.py
+    volumes:
+      - .:/usr/src/app
+    networks:
+      - webnet
+
+  script-contact-task:
+    build:
+      context: .
+    container_name: script-contact-task
+    restart: always
+    command: python3 scrape_contact_us.py
     volumes:
       - .:/usr/src/app
     networks:
