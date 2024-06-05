@@ -25,8 +25,9 @@ urlpatterns = [
     ),
     path("test/test-email/", _views.test_email_view, name="test-email"),
     path("test/test-sms/", _views.test_sms_view, name="test-sms"),
-    path("test/run/",_views.test_run,name="test-run"),
+    path("test/run/", _views.test_run, name="test-run"),
     path("contact/contact_us/", _views.contact_us, name="contact_us"),
+    path("get/contact_us/", _views.get_contact_us, name="get_contact_us"),
     path("scrape/contact_us/", _views.scrape_contact_us, name="scrape_contact_us"),
     path("upload/upload_data/", _views.data_upload, name="data_upload"),
     path(

@@ -1,3 +1,4 @@
+from attr import filters
 from django.conf import settings
 from django.http.response import HttpResponse
 from django.views.decorators.http import require_http_methods
@@ -21,6 +22,7 @@ from rest_framework.response import Response
 from .helpers import CustomResponse, CampaignHelper, ContactUs
 import requests
 import time
+from datetime import datetime
 import os
 import csv
 from django.utils.crypto import get_random_string
@@ -894,15 +896,15 @@ class CampaignAudienceListAddAPIView(SamanthaCampaignsAPIView):
 
 
 # todo add workspace_id
-#todo add workspace_id
+# todo add workspace_id
 class campaign_audience_unsubscribe_view(SamanthaCampaignsAPIView):
-    def get(self,request,*args, **kwargs):
+    def get(self, request, *args, **kwargs):
         """
         Unsubscribes an audience from a campaign
         """
         campaign_id = kwargs.get("campaign_id", None)
         audience_id = request.GET.get("audience_id", None)
-        workspace_id = request.GET.get("workspace_id",None)
+        workspace_id = request.GET.get("workspace_id", None)
         msg = "You have successfully unsubscribed from this campaign."
         try:
             if not campaign_id:
@@ -915,7 +917,7 @@ class campaign_audience_unsubscribe_view(SamanthaCampaignsAPIView):
                 dowell_api_key=settings.PROJECT_API_KEY,
                 workspace_id=workspace_id,
             )
-            print("got campaign",campaign)
+            print("got campaign", campaign)
             audience = campaign.audiences.get(id=audience_id)
             try:
                 audience.unsubscribe()
@@ -929,8 +931,7 @@ class campaign_audience_unsubscribe_view(SamanthaCampaignsAPIView):
             return HttpResponse(msg, status=400)
 
         html_response = construct_dowell_email_template(
-            subject=f"Unsubscribe from Campaign: '{campaign.title}'",
-            body=msg
+            subject=f"Unsubscribe from Campaign: '{campaign.title}'", body=msg
         )
         return HttpResponse(html_response, status=200)
 
@@ -1228,7 +1229,7 @@ class ContactUsView(SamanthaCampaignsAPIView):
             )
             filters = {"page_links": {"$exists": True}}
             result = dowell_datacube.fetch(collection_name, filters=filters)
-
+            print(result)
             return Response({"success": True, "contact_us": result})
 
         except Exception as e:
@@ -1236,36 +1237,198 @@ class ContactUsView(SamanthaCampaignsAPIView):
 
     def post(self, request):
         try:
-            workspace_id = request.query_params.get("workspace_id", None)
+            # Extract workspace_id from query parameters
+            try:
+                workspace_id = request.query_params.get("workspace_id", None)
+                if not workspace_id:
+                    raise APIException("Workspace ID is required.")
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to extract workspace_id: {str(e)}"}, status=400
+                )
+
+            # Extract links from request data
+            try:
+                links = request.data.get("links")
+                if not links:
+                    raise APIException("Links data is required.")
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to extract links: {str(e)}"}, status=400
+                )
+
+            form_fields = []
+            collection_name = f"{workspace_id}_contact_us"
+            database_name = f"{workspace_id}_samanta_campaign_db"
+
+            try:
+                dowell_datacube = DowellDatacubeV2(
+                    db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to initialize DowellDatacubeV2: {str(e)}"},
+                    status=500,
+                )
+
+            title = request.data.get("title")
+            purpose = request.data.get("purpose")
+            image = request.data.get("image")
+
+            # Validate the links data
+            try:
+                serializer = ContactUsSerializer(data={"page_links": links})
+                serializer.is_valid(raise_exception=True)
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to validate links data: {str(e)}"}, status=400
+                )
+
+            # Prepare data for insertion
+            try:
+                serialized_data = serializer.validated_data
+                serialized_data["is_crawled"] = False  # Add is_crawled attribute
+                serialized_data["form_fields"] = (
+                    form_fields  # Add form_fields attribute
+                )
+                serialized_data["title"] = title
+                serialized_data["purpose"] = purpose
+                serialized_data["created_at"] = (
+                    datetime.now().isoformat()
+                )  # Convert to ISO format
+                serialized_data["image"] = image
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to prepare data for insertion: {str(e)}"},
+                    status=500,
+                )
+
+            # Insert data into the database
+            try:
+                result = dowell_datacube.insert(
+                    _into=collection_name, data=serialized_data
+                )
+                print("this is result ", result)
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to insert data into database: {str(e)}"},
+                    status=500,
+                )
+
+            # Fetch the updated data
+            try:
+                id = result.get("inserted_id")
+                filters = {"_id": id}
+                updated_contact_us = dowell_datacube.fetch(
+                    _from=collection_name, filters=filters
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to fetch updated data: {str(e)}"}, status=500
+                )
+
+            return Response(updated_contact_us["data"])
+
+        except APIException as e:
+            return Response({"error": str(e)}, status=400)
+        except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
+            )
+
+
+class GetContactUs(SamanthaCampaignsAPIView):
+    def get(self, request):
+        try:
+            workspace_id = request.query_params.get("workspace_id")
             if not workspace_id:
                 raise APIException("Workspace ID is required.")
 
-            links = request.data.get("links")
-            if not links:
-                raise APIException("Links data is required.")
-            form_fields = []
-            
+            campaign_id = request.query_params.get("campaign_id")
+            if not campaign_id:
+                raise APIException("Campaign ID is required.")
+
             collection_name = f"{workspace_id}_contact_us"
             database_name = f"{workspace_id}_samanta_campaign_db"
-            dowell_datacube = DowellDatacubeV2(
-                db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
+
+            try:
+                dowell_datacube = DowellDatacube(
+                    db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to initialize DowellDatacube: {str(e)}"},
+                    status=500,
+                )
+
+            filters = {"_id": campaign_id}
+            try:
+                result = dowell_datacube.fetch(_from=collection_name, filters=filters)
+                if not result:
+                    raise APIException("No data found for the given campaign ID.")
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to fetch data: {str(e)}"}, status=500
+                )
+
+            return Response({"success": True, "contact_us": result})
+
+        except APIException as e:
+            return Response({"error": str(e)}, status=400)
+        except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
             )
 
-            # Validate the links data
-            serializer = ContactUsSerializer(data={"page_links": links})
-            serializer.is_valid(raise_exception=True)
+    def put(self, request):
+        try:
+            workspace_id = request.query_params.get("workspace_id")
+            if not workspace_id:
+                raise APIException("Workspace ID is required.")
 
-            # Insert data into the database
-            serialized_data = serializer.validated_data
-            print(serialized_data)
-            serialized_data["is_crawled"] = False  # Add is_crawled attribute
-            serialized_data["form_fields"] = form_fields  # Add form_fields attribute
-            result = dowell_datacube.insert(_into=collection_name, data=serialized_data)
+            campaign_id = request.query_params.get("campaign_id")
+            if not campaign_id:
+                raise APIException("Campaign ID is required.")
 
-            return Response(result)
+            data = request.data
+            if not data:
+                raise APIException("Update data is required.")
 
+            collection_name = f"{workspace_id}_contact_us"
+            database_name = f"{workspace_id}_samanta_campaign_db"
+
+            try:
+                dowell_datacube = DowellDatacubeV2(
+                    db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to initialize DowellDatacube: {str(e)}"},
+                    status=500,
+                )
+
+            filter = {"_id": campaign_id}
+            try:
+                result = dowell_datacube.update(
+                    _in=collection_name, filter=filter, data=data
+                )
+                if not result:
+                    raise APIException("Failed to update the contact us data.")
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to update data: {str(e)}"}, status=500
+                )
+
+            return Response(
+                {"success": True, "message": "Contact us updated successfully"}
+            )
+
+        except APIException as e:
+            return Response({"error": str(e)}, status=400)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
+            )
 
 
 class CrawlLinks(SamanthaCampaignsAPIView):
@@ -1275,10 +1438,15 @@ class CrawlLinks(SamanthaCampaignsAPIView):
         scrape_result = Scrape_contact_us.scrape(workspace_id=workspace_id)
 
         if scrape_result is None:
-            return Response({"message": "Form data already crawled or an error occurred."}, status=200)
+            return Response(
+                {"message": "Form data already crawled or an error occurred."},
+                status=200,
+            )
         else:
-            return Response({"message": "Done crawling form data.", "data": scrape_result}, status=200)
-
+            return Response(
+                {"message": "Done crawling form data.", "data": scrape_result},
+                status=200,
+            )
 
 
 class DataUpload(SamanthaCampaignsAPIView):
@@ -1345,3 +1513,4 @@ scrape_contact_us = CrawlLinks.as_view()
 data_upload = DataUpload.as_view()
 test_sms_view = TestSmS.as_view()
 test_run = TestingRun.as_view()
+get_contact_us = GetContactUs.as_view()
