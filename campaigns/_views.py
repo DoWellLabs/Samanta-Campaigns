@@ -1494,6 +1494,20 @@ class TestingRun(SamanthaCampaignsAPIView):
         )
         return Response(res)
 
+class WorkspaceIDsView(SamanthaCampaignsAPIView):
+    def get(self, request):
+        file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'workspace_ids.txt')
+        
+        if not os.path.exists(file_path):
+            return Response({"error": "File not found."}, status=404)
+
+        try:
+            with open(file_path, 'r') as file:
+                ids = file.read().splitlines()
+            return Response(ids, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 
 campaign_list_create_api_view = CampaignListCreateAPIView.as_view()
 get_link_data_view = GetScrapingLink.as_view()
@@ -1514,3 +1528,4 @@ data_upload = DataUpload.as_view()
 test_sms_view = TestSmS.as_view()
 test_run = TestingRun.as_view()
 get_contact_us = GetContactUs.as_view()
+get_workspace_ids = WorkspaceIDsView.as_view()
