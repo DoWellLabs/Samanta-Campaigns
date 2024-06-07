@@ -27,27 +27,27 @@ services:
   #   networks:
   #     - webnet
 
-  run-due-task:
-    build:
-      context: .
-    container_name: run-due-task
-    restart: always
-    command: python3 run_due_campaigns_task.py
-    volumes:
-      - .:/usr/src/app
-    networks:
-      - webnet
+  # run-due-task:
+  #   build:
+  #     context: .
+  #   container_name: run-due-task
+  #   restart: always
+  #   command: python3 run_due_campaigns_task.py
+  #   volumes:
+  #     - .:/usr/src/app
+  #   networks:
+  #     - webnet
 
-  deactivate-active-task:
-    build:
-      context: .
-    container_name: deactivate-active-task
-    restart: always
-    command: python3 deactivate_expired_campaigns_task.py
-    volumes:
-      - .:/usr/src/app
-    networks:
-      - webnet
+  # deactivate-active-task:
+  #   build:
+  #     context: .
+  #   container_name: deactivate-active-task
+  #   restart: always
+  #   command: python3 deactivate_expired_campaigns_task.py
+  #   volumes:
+  #     - .:/usr/src/app
+  #   networks:
+  #     - webnet
 
   script-contact-task:
     build:

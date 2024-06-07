@@ -4,17 +4,13 @@ import time
 
 def get_workspace_ids():
     print("Getting workspaces")
-    """
-    Retrieve workspace IDs from the text file.
-
-    :return: A list of workspace IDs.
-    """
     try:
-        with open("workspace_ids.txt", "r") as file:
-            workspace_ids = file.read().splitlines()
-            print(workspace_ids)
-        return workspace_ids
+        url="https://www.uxlive.me/samanta-campaigns/api/v1/campaignsV2/get/workspace_id/"
+        res = requests.get(url)
+        print(res)
+        return res.json()
     except FileNotFoundError:
+        print("workspace_ids.txt file not found")
         return []
 
 
