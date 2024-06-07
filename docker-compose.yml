@@ -16,16 +16,16 @@ services:
     networks:
       - webnet
 
-  script-link-task:
-    build:
-      context: .
-    container_name: script-link-task
-    restart: always
-    command: python3 scrape_links_task.py
-    volumes:
-      - .:/usr/src/app
-    networks:
-      - webnet
+  # script-link-task:
+  #   build:
+  #     context: .
+  #   container_name: script-link-task
+  #   restart: always
+  #   command: python3 scrape_links_task.py
+  #   volumes:
+  #     - .:/usr/src/app
+  #   networks:
+  #     - webnet
 
   run-due-task:
     build:

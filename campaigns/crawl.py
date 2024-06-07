@@ -24,7 +24,7 @@ email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
 async def fetch_links(session, url):
     if not url:
         print("Empty URL encountered, skipping.")
-        return [], url
+        return []
     try:
         async with session.get(url, headers=HEADERS, timeout=10) as response:
             response.raise_for_status()
@@ -32,30 +32,24 @@ async def fetch_links(session, url):
             soup = BeautifulSoup(text, 'html.parser')
             links = [a_tag.get('href') for a_tag in soup.find_all('a', href=True)]
             print(f'Fetched {len(links)} links from {url}')
-            return links, url
+            return links
     except (aiohttp.ClientError, asyncio.TimeoutError) as e:
         print(f"Error fetching {url}: {e}")
-        return [], url
+        return []
 
-async def get_links_async(urls_list):
+async def get_links_async(url):
     async with aiohttp.ClientSession() as session:
-        tasks = [fetch_links(session, url) for url in urls_list]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-    return results
-
-def process_links(results, filter_social=False):
-    links = []
-    for result in results:
-        if isinstance(result, tuple):
-            result_links, base_url = result
-            for link in result_links:
-                if filter_social and any(domain in link for domain in social_media_domains):
-                    continue
-                absolute_url = urljoin(base_url, link)
-                links.append(absolute_url)
-        else:
-            print(f"Skipping result due to error: {result}")
+        links = await fetch_links(session, url)
     return links
+
+def process_links(links, base_url, filter_social=False):
+    processed_links = []
+    for link in links:
+        if filter_social and any(domain in link for domain in social_media_domains):
+            continue
+        absolute_url = urljoin(base_url, link)
+        processed_links.append(absolute_url)
+    return processed_links
 
 def get_emails(links):
     emails_set = set()
@@ -80,20 +74,23 @@ def check_social_media_links(links):
             social_links.add(link)
     return list(social_links)
 
-async def crawl(urls_list):
-    print("Crawling URLs:", urls_list)
-    initial_results = await get_links_async(urls_list)
-    initial_links = process_links(initial_results)
+async def crawl(url):
+    print("Crawling URL:", url)
+    initial_links = await get_links_async(url)
+    processed_links = process_links(initial_links, url)
     
     # Removing duplicates by converting to a set
-    new_urls_list = list(set(initial_links))
+    new_urls_list = list(set(processed_links))
     
     # Fetching new set of URLs
-    new_results = await get_links_async(new_urls_list)
-    new_links = process_links(new_results)
+    all_links = []
+    async with aiohttp.ClientSession() as session:
+        for new_url in new_urls_list:
+            links = await fetch_links(session, new_url)
+            all_links.extend(process_links(links, new_url))
     
     # Combine all links
-    all_links = initial_links + new_links
+    all_links = list(set(initial_links + all_links))
     
     emails = get_emails(all_links)
     phones = get_phones(all_links)
@@ -102,7 +99,11 @@ async def crawl(urls_list):
     data = {
         "emails": emails,
         "phone_numbers": phones,
-        "links":social_media_links
+        "links": social_media_links
     }
     print("Data after crawling:", data)
     return data
+
+# Example usage:
+# url = 'http://example.com'
+# asyncio.run(crawl(url))

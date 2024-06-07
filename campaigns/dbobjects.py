@@ -877,7 +877,7 @@ class CampaignAudienceLeadsLink(DatacubeObject):
             ),
         ):
             sys.stdout.write(self.url)
-            result = await crawl([self.url])
+            result = await crawl(self.url)
             print("this is the results inside await crawl", result)
             print(result)
             # Add self.url to the result dictionary
