@@ -1,3 +1,4 @@
+from os import name
 from django.urls import path, include
 
 from . import webhooks, _views
@@ -28,8 +29,9 @@ urlpatterns = [
     path("test/run/", _views.test_run, name="test-run"),
     path("contact/contact_us/", _views.contact_us, name="contact_us"),
     path("get/contact_us/", _views.get_contact_us, name="get_contact_us"),
-    path("get/workspace_id/",_views.get_workspace_ids,name="get_workspace_ids"),
+    path("get/workspace_id/", _views.get_workspace_ids, name="get_workspace_ids"),
     path("scrape/contact_us/", _views.scrape_contact_us, name="scrape_contact_us"),
+    path("launch/contact_us/", _views.launch_contact_us, name="launch_contact_us"),
     path("upload/upload_data/", _views.data_upload, name="data_upload"),
     path(
         "<str:campaign_id>/activate-deactivate/",

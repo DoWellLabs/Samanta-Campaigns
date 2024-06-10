@@ -19,7 +19,7 @@ from api.database import SamanthaCampaignsDB
 from api.dowell.datacube import DowellDatacube
 from .datacube import DowellDatacubeV2
 from rest_framework.response import Response
-from .helpers import CustomResponse, CampaignHelper, ContactUs
+from .helpers import CustomResponse, CampaignHelper, ContactUs, page_links
 import requests
 import time
 from datetime import datetime
@@ -1430,6 +1430,41 @@ class GetContactUs(SamanthaCampaignsAPIView):
                 {"error": f"An unexpected error occurred: {str(e)}"}, status=500
             )
 
+    def delete(self, request):
+        try:
+            workspace_id = request.query_params.get("workspace_id")
+            campaign_id = request.query_params.get("campaign_id")
+
+            if not workspace_id or not campaign_id:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "workspace_id and campaign_id are required.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            collection_name = f"{workspace_id}_contact_us"
+            database_name = f"{workspace_id}_samanta_campaign_db"
+            dowell_datacube = DowellDatacubeV2(
+                db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
+            )
+            filter = {"_id": campaign_id}
+
+            # Attempt to delete the record
+            delete_result = dowell_datacube.delete(_from=collection_name, filter=filter)
+            print(delete_result)
+            return Response(
+                {"success": True, "message": "Record deleted successfully."},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class CrawlLinks(SamanthaCampaignsAPIView):
     def post(self, request):
@@ -1446,6 +1481,75 @@ class CrawlLinks(SamanthaCampaignsAPIView):
             return Response(
                 {"message": "Done crawling form data.", "data": scrape_result},
                 status=200,
+            )
+
+
+class LaunchContactUs(SamanthaCampaignsAPIView):
+    def post(self, request):
+        try:
+            workspace_id = request.query_params.get("workspace_id")
+            campaign_id = request.query_params.get("campaign_id")
+            form_data = request.data.get("form_data")
+
+            if not workspace_id or not campaign_id:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "workspace_id and campaign_id are required.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not isinstance(form_data, list):
+                return Response(
+                    {"success": False, "message": "form_data must be a list."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            collection_name = f"{workspace_id}_contact_us"
+            database_name = f"{workspace_id}_samanta_campaign_db"
+            dowell_datacube = DowellDatacubeV2(
+                db_name=database_name, dowell_api_key=settings.PROJECT_API_KEY
+            )
+            filter = {"_id": campaign_id}
+            res = dowell_datacube.fetch(_from=collection_name, filters=filter)
+
+            if not res or "data" not in res:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "No data found for the given campaign_id.",
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            data = res.get("data")
+            if not data:
+                return Response(
+                    {"success": False, "message": "No data available."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            print("this is form data", form_data)
+            page_links = data[0].get("page_links")
+            is_crawled = data[0].get("is_crawled")
+            print("this is is_crawled and page_links", page_links, is_crawled)
+            if is_crawled:
+                url = "https://uxlivinglab100106.pythonanywhere.com/api/submit-contact-form/"
+                payload = {"page_links": page_links, "form_data": form_data}
+                result = requests.post(url, json=payload)
+                print(result.json())
+                return Response({"success": True, "message": result.json()})
+            else:
+                return Response(
+                    {"success": False, "message": "Not crawled"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        except Exception as e:
+            return Response(
+                {"success": False, "message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -1494,15 +1598,19 @@ class TestingRun(SamanthaCampaignsAPIView):
         )
         return Response(res)
 
+
 class WorkspaceIDsView(SamanthaCampaignsAPIView):
     def get(self, request):
-        file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'workspace_ids.txt')
-        
+        file_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "workspace_ids.txt",
+        )
+
         if not os.path.exists(file_path):
             return Response({"error": "File not found."}, status=404)
 
         try:
-            with open(file_path, 'r') as file:
+            with open(file_path, "r") as file:
                 ids = file.read().splitlines()
             return Response(ids, status=200)
         except Exception as e:
@@ -1529,3 +1637,4 @@ test_sms_view = TestSmS.as_view()
 test_run = TestingRun.as_view()
 get_contact_us = GetContactUs.as_view()
 get_workspace_ids = WorkspaceIDsView.as_view()
+launch_contact_us = LaunchContactUs.as_view()
