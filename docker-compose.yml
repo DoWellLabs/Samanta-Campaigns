@@ -49,16 +49,16 @@ services:
   #   networks:
   #     - webnet
 
-#  script-contact-task:
-#     build:
-#       context: .
-#     container_name: script-contact-task
-#     restart: always
-#     command: python3 scrape_contact_us.py
-#     volumes:
-#       - .:/usr/src/app
-#     networks:
-#       - webnet 
+  script-contact-task:
+    build:
+      context: .
+    container_name: script-contact-task
+    restart: always
+    command: python3 scrape_contact_us.py
+    volumes:
+      - .:/usr/src/app
+    networks:
+      - webnet
 
 networks:
   webnet:
