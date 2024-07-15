@@ -15,7 +15,7 @@ class HealthCheckAPIView(APIView):
     def get(self, request, *args, **kwargs):
         return response.Response(
             data={
-                "detail": "If you are seeing this, The backend server is running @v1.0.9"
+                "detail": "If you are seeing this, The backend server is running @v1.0.10"
             },
             status=status.HTTP_200_OK,
         )
