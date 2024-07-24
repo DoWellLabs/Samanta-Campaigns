@@ -501,3 +501,180 @@ def page_links(links):
                 responses.append((link, exc))
 
     return responses
+
+
+class SendRunEmail:
+    def sendmail(self, workspace_id):
+        user_info = self.get_dowell_user_info(client_admin_id=workspace_id)
+
+        subject = "Audience Messaging Completed"
+        body_message = (
+            "Dear User,\n\n"
+            "We're pleased to inform you that your audience has been successfully messaged. "
+            "You can now return to the application to review the outcomes and insights generated from this messaging activity. "
+            "This significant milestone ensures that your campaigns are reaching the intended audience, "
+            "empowering you to make informed decisions and drive impactful results. "
+            "We appreciate your patience throughout this process and look forward to seeing the positive outcomes of your campaigns. "
+            "Should you have any questions or require further assistance, please don't hesitate to reach out to our support team. "
+            "Thank you for choosing our platform.\n\n"
+            "Best regards,\n"
+            "The Samantha Campaigns Team"
+        )
+
+        toemail = user_info["email"]
+        fromemail = "dowell@dowellresearch.uk"
+        toname = user_info["username"]
+        fromname = "Samantha Campaigns"
+
+        res = self.send_mail(
+            subject=subject,
+            body=self.construct_dowell_email_template(
+                subject=subject, body=body_message
+            ),
+            sender_address=fromemail,
+            recipient_address=toemail,
+            sender_name=fromname,
+            recipient_name=toname,
+        )
+        return res
+
+    def send_mail(
+        self,
+        subject: str,
+        body: str,
+        sender_address: str,
+        recipient_address: str,
+        sender_name: str,
+        recipient_name: str,
+    ):
+        """
+        Sends mail using Dowell Email API.
+
+        #### Private method. Use responsibly.
+        """
+        for address in (recipient_address, sender_address):
+            if not is_email(address):
+                raise ValidationError(f"{address} is not a valid email address!")
+        if not body:
+            raise ValueError("body of mail cannot be empty")
+        if not subject:
+            raise ValueError("subject of mail cannot be empty")
+        if not sender_name:
+            raise ValueError("sender_name must be provided")
+        if not recipient_name:
+            raise ValueError("recipient_name must be provided")
+
+        response = requests.post(
+            url="https://100085.pythonanywhere.com/api/uxlivinglab/email/",
+            data={
+                "toname": recipient_name,
+                "toemail": recipient_address,
+                "fromname": sender_name,
+                "fromemail": sender_address,
+                "subject": subject,
+                "email_content": body,
+            },
+        )
+        print(response.json())
+        if response.status_code != 200:
+            response.raise_for_status()
+        if not response.json()["success"]:
+            raise Exception(response.json()["message"])
+        return None
+
+    def construct_dowell_email_template(
+        self,
+        subject: str,
+        body: str,
+    ):
+        """
+        Convert a text to an samantha campaigns email template
+
+        :param subject: The subject of the email
+        :param body: The body of the email. (Can be html too)
+        :param recipient: The recipient of the email
+        :param image_url: The url of the image to include in the email
+        :param unsubscribe_link: The link to unsubscribe from the email
+        """
+        if not isinstance(subject, str):
+            raise TypeError("subject should be of type str")
+        if not isinstance(body, str):
+            raise TypeError("body should be of type str")
+
+        template = """
+        <!doctype html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>{subject}</title>
+        </head>
+        <body
+            style="
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            "
+        >
+            <div style="width: 100%; background-color: #ffffff">
+            <header
+                style="
+                color: #fff;
+                display: flex;
+                text-align: center;
+                justify-content: center;
+                padding: 5px;
+                "
+            >
+            </header>
+            <article style="margin-top: 20px; text-align: center">
+                <h2>{subject}</h2>
+            </article>
+
+            <main style="padding: 20px">
+                <section style="margin: 20px">
+                <p
+                    style="font-size: 14px; 
+                    font-weight: 600;"
+                >
+                </p>
+                {body}  <!-- Body is inserted here -->
+                </section>
+            </main>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Wrap each paragraph in <p> tags
+        body_paragraphs = "\n".join(
+            f"<p style='font-size: 14px'>{paragraph.strip()}</p>"
+            for paragraph in body.split("\n\n")
+        )
+
+        return template.format(subject=subject.title(), body=body_paragraphs)
+
+    def get_dowell_user_info(self, client_admin_id: str):
+        print(client_admin_id)
+        """
+        Gets the Dowell user info for the user with the client admin id provided
+
+        :param client_admin_id: The Dowell client admin id of the user.
+        """
+        response = requests.get(
+            url="https://100105.pythonanywhere.com/api/v3/user/",
+            params={
+                "type": "get_api_key",
+                "workspace_id": client_admin_id,
+            },
+        )
+        if response.status_code == 200:
+            if response.json()["success"] == True:
+                # print("the response is",response.json()['data'])
+                return response.json()["data"]
+            raise UserNotFound(client_admin_id)
+        response.raise_for_status()
+        return None

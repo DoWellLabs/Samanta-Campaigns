@@ -43,7 +43,7 @@ from .utils import (
     check_campaign_creator_has_sufficient_credits_to_run_campaign_once,
 )
 from .crawl import crawl
-
+from .helpers import SendRunEmail
 
 # CAMPAIGN SIGNALS
 # ----------------------------------------------------
@@ -665,9 +665,14 @@ class Campaign(DatacubeObject):
             subscribers = self.audiences.subscribed()
             print("users are subscribed", subscribers)
             for subscriber in subscribers:
-                print("this is subscriber email sent status",subscriber.email_sent)
+                print("this is subscriber email sent status", subscriber.email_sent)
                 subscriber.email_sent = True
-                print("this is subscriber email sent status after changing to true",subscriber.email_sent)
+                print(
+                    "this is subscriber email sent status after changing to true",
+                    subscriber.email_sent,
+                )
+            sent_mails = SendRunEmail()
+            sent_mails.sendmail(self.creator_id)
             message.send(to=subscribers, report=run_report)
 
         except Exception as exc:
@@ -1079,7 +1084,7 @@ class CampaignMessage(DatacubeObject):
             campaign = self.get_campaign(dowell_api_key=settings.PROJECT_API_KEY)
             print("campaign inside async def _send_email_to_audience", campaign)
             workspace_id = self.workspace_id
-            print("user wordspace id",workspace_id)
+            print("user wordspace id", workspace_id)
             unsubscribe_url = urljoin(
                 settings.API_BASE_URL,
                 f"campaignsV2/{campaign.pkey}/audiences/unsubscribe/?audience_id={audience.id}&workspace_id={workspace_id}",
