@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.static import serve
@@ -24,8 +25,9 @@ from . import views
 
 urlpatterns = [
     re_path(r"^static/(?P<path>.*)$", serve, {"document_root": settings.STATIC_ROOT}),
-    path('samanta-campaigns/', views.health_check_api_view, name="health-check"),
-    path('samanta-campaigns/admin/', admin.site.urls),
+    path("samanta-campaigns/", views.health_check_api_view, name="health-check"),
+    path("samanta-campaigns/admin/", admin.site.urls),
     path("samanta-campaigns/api/v1/", include("api.urls"), name="api"),
-    path("samanta-campaigns/scrape", views.request_task_run, name="scrape-task" )
+    path("samanta-campaigns/crawler/v1/", include("crawler.urls"), name="crawler"),
+    path("samanta-campaigns/scrape", views.request_task_run, name="scrape-task"),
 ]

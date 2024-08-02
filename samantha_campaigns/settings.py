@@ -14,7 +14,6 @@ from pathlib import Path
 import os
 
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,65 +35,64 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # External deps
     "rest_framework",
     "corsheaders",
     # "phonenumber_field",
     "django_utz",
-
-
     # Local apps
     "api.apps.ApiConfig",
     "campaigns.apps.CampaignsConfig",
-    "reports.apps.ReportsConfig"
+    "reports.apps.ReportsConfig",
+    "crawler",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_utz.middleware.DjangoUTZMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # CORS
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_utz.middleware.DjangoUTZMiddleware",
 ]
 
-ROOT_URLCONF = 'samantha_campaigns.urls'
+ROOT_URLCONF = "samantha_campaigns.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'samantha_campaigns.wsgi.application'
+WSGI_APPLICATION = "samantha_campaigns.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -104,49 +102,49 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'users.backends.DowellSessionIDAuthorizationBackend',
+    "users.backends.DowellSessionIDAuthorizationBackend",
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
 USE_TZ = True
 
-# CSRF 
+# CSRF
 
-CSRF_COOKIE_SECURE = True 
+CSRF_COOKIE_SECURE = True
 
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = "Lax"
 
 CSRF_TRUSTED_ORIGINS = ["http://*", "https://*"]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
-MEDIA_URL = '/filestorage/'
+MEDIA_URL = "/filestorage/"
 
 # media will be stored in filestorage folder
 MEDIA_ROOT = os.path.join(BASE_DIR, MEDIA_URL)
@@ -160,7 +158,7 @@ LOG_PATH = os.path.join(BASE_DIR, "logs")
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 APPEND_SLASH = True
 
@@ -193,13 +191,19 @@ DOWELL_USER_INFO_URL = "https://100014.pythonanywhere.com/api/userinfo/"
 
 DOWELL_USER_SERVICE_KEY_URL = "https://100105.pythonanywhere.com/api/v3/user/"
 
-DOWELL_PROCESS_SERVICES_URL = "https://100105.pythonanywhere.com/api/v3/process-services/"
+DOWELL_PROCESS_SERVICES_URL = (
+    "https://100105.pythonanywhere.com/api/v3/process-services/"
+)
 
 DOWELL_MAIL_URL = "https://100085.pythonanywhere.com/api/uxlivinglab/email/"
 
-DOWELL_EMAIL_VALIDATOR_URL = "https://100085.pythonanywhere.com/api/uxlivinglab/verify-email/"
+DOWELL_EMAIL_VALIDATOR_URL = (
+    "https://100085.pythonanywhere.com/api/uxlivinglab/verify-email/"
+)
 
-DOWELL_WEBSITE_CRAWLER_URL = "https://uxlivinglab100106.pythonanywhere.com/api/website-info-extractor/"
+DOWELL_WEBSITE_CRAWLER_URL = (
+    "https://uxlivinglab100106.pythonanywhere.com/api/website-info-extractor/"
+)
 
 
 ##########################
