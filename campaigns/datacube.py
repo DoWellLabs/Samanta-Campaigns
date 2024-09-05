@@ -11,11 +11,11 @@ class DowellDatacubeV2:
     """Dowell Datacube database client"""
     # Endpoints to connect to for the available database operations
     connection_urls = {
-        "fetch": "https://datacube.uxlivinglab.online/db_api/get_data/",
-        "insert": "https://datacube.uxlivinglab.online/db_api/crud/",
-        "update": "https://datacube.uxlivinglab.online/db_api/crud/",
-        "delete": "https://datacube.uxlivinglab.online/db_api/crud/",
-        "add_collection": "https://datacube.uxlivinglab.online/db_api/add_collection/"
+        "fetch": "https://www.dowelldatacube.uxlivinglab.online/db_api/get_data/",
+        "insert": "https://www.dowelldatacube.uxlivinglab.online/db_api/crud/",
+        "update": "https://www.dowelldatacube.uxlivinglab.online/db_api/crud/",
+        "delete": "https://www.dowelldatacube.uxlivinglab.online/db_api/crud/",
+        "add_collection": "https://www.dowelldatacube.uxlivinglab.online/db_api/add_collection/"
     }
 
     def __init__(self, db_name: str, *, dowell_api_key: str) -> None:
