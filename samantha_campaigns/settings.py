@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     # "phonenumber_field",
-    "django_utz",
+    # "django_utz",
     # Local apps
     "api.apps.ApiConfig",
     "campaigns.apps.CampaignsConfig",
